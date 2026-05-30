@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+
+# User-specific IDE files
+.vs/
+.vscode/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries/
+.idea/**/shelf/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local verification screenshots
+lumina-*.png
+nzo-*.png
+
+# Logs
+*.log

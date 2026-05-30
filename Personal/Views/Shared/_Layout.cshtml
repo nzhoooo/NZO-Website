@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@ViewData["Title"] - NZO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+</head>
+<body>
+<nav class="top-bar" id="top-nav" aria-label="Main menu">
+    <div class="top-bar__left">
+        <a class="top-bar__brand" asp-area="" asp-controller="Home" asp-action="Index">NZO</a>
+        <div class="top-bar__menus" aria-label="Studio menu">
+            <span>File</span>
+            <span>Edit</span>
+            <span>View</span>
+            <span>Go</span>
+            <span>Window</span>
+            <span>Help</span>
+        </div>
+    </div>
+    <div class="top-bar__actions">
+        <a class="admin-button" asp-area="" asp-controller="Home" asp-action="Admin" aria-label="Open admin setup">
+            <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+            <span>Admin</span>
+        </a>
+        <button type="button" aria-label="Search">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        </button>
+        <button type="button" id="theme-toggle" aria-label="Toggle theme">
+            <span class="material-symbols-outlined" aria-hidden="true">dark_mode</span>
+        </button>
+    </div>
+</nav>
+
+<main>
+    @RenderBody()
+</main>
+
+<footer class="lumina-footer" id="contact">
+    <div class="lumina-container lumina-footer__inner">
+        <div>
+            <span class="lumina-footer__brand">NZO</span>
+            <p>&copy; 2024 NZO Studio. Designed for the focused eye.</p>
+        </div>
+        <div class="lumina-footer__links">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Archive</a>
+        </div>
+    </div>
+</footer>
+
+<nav class="dock" aria-label="Section navigation">
+    <a class="dock__item dock__item--active" href="/#home">
+        <span class="material-symbols-outlined" aria-hidden="true">home</span>
+        <span>Home</span>
+    </a>
+    <a class="dock__item" href="/#gallery">
+        <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+        <span>Gallery</span>
+    </a>
+    <a class="dock__item" href="/#journal">
+        <span class="material-symbols-outlined" aria-hidden="true">auto_stories</span>
+        <span>Journal</span>
+    </a>
+    <a class="dock__item" href="/#studio">
+        <span class="material-symbols-outlined" aria-hidden="true">camera</span>
+        <span>Studio</span>
+    </a>
+    <a class="dock__item" href="/#contact">
+        <span class="material-symbols-outlined" aria-hidden="true">mail</span>
+        <span>Contact</span>
+    </a>
+</nav>
+
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

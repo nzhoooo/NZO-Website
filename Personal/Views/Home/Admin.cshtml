@@ -1,0 +1,197 @@
+@model AdminViewModel
+
+@{
+    ViewData["Title"] = "Admin Setup";
+}
+
+<section class="admin-shell">
+    <div class="lumina-container">
+        <div class="admin-hero reveal">
+            <span class="label">Temporary Admin</span>
+            <h1>NZO control room.</h1>
+            <p>Early setup surface for managing site readiness, publishing tools, and accessibility preferences before the production upload flow goes live.</p>
+        </div>
+
+        @if (TempData["AdminMessage"] is string message)
+        {
+            <div class="admin-alert" role="status">@message</div>
+        }
+
+        <div class="admin-grid">
+            <article class="admin-card admin-card--wide reveal">
+                <div class="admin-card__icon">
+                    <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+                </div>
+                <div>
+                    <span class="label">Site Setup</span>
+                    <h2>Studio configuration</h2>
+                    <p>Keep the public site pointed at curated gallery content while we prepare the private upload and publishing workflow.</p>
+                </div>
+                <div class="setup-list" aria-label="Site setup status">
+                    <div>
+                        <span>Brand</span>
+                        <strong>NZO</strong>
+                    </div>
+                    <div>
+                        <span>Gallery Source</span>
+                        <strong>Curated assets</strong>
+                    </div>
+                    <div>
+                        <span>Upload Flow</span>
+                        <strong>Local admin</strong>
+                    </div>
+                </div>
+            </article>
+
+            <article class="admin-card admin-card--wide reveal">
+                <div class="admin-card__icon admin-card__icon--blue">
+                    <span class="material-symbols-outlined" aria-hidden="true">upload</span>
+                </div>
+                <span class="label">Publishing</span>
+                <h2>Upload images</h2>
+                <p>Add images to the local admin library. You can also use the first uploaded image as the landing page background.</p>
+                <form class="upload-form" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
+                    <label class="file-drop">
+                        <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+                        <span>Choose images</span>
+                        <input type="file" name="images" accept="image/*" multiple required>
+                    </label>
+                    <label class="admin-check">
+                        <input type="checkbox" name="useAsLandingBackground" value="true">
+                        Set first upload as landing background
+                    </label>
+                    <button class="soft-button" type="submit">
+                        Upload
+                        <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
+                    </button>
+                </form>
+            </article>
+
+            <article class="admin-card reveal">
+                <div class="admin-card__icon admin-card__icon--dark">
+                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                </div>
+                <span class="label">Access</span>
+                <h2>Admin access</h2>
+                <p>This button is public while the site is local. Before launch, we can move it behind authentication or remove it from the public chrome.</p>
+                <div class="status-pill">Local only for now</div>
+            </article>
+
+            <article class="admin-card admin-card--wide reveal">
+                <div class="admin-card__icon admin-card__icon--soft">
+                    <span class="material-symbols-outlined" aria-hidden="true">wallpaper</span>
+                </div>
+                <span class="label">Landing Page</span>
+                <h2>Background image</h2>
+                <p>The active landing page background is shown below. Pick any uploaded image to replace it.</p>
+                <div class="current-background">
+                    <img src="@Model.CurrentLandingBackground" alt="Current landing page background">
+                </div>
+            </article>
+
+            <article class="admin-card admin-card--full reveal">
+                <div class="admin-card__icon admin-card__icon--blue">
+                    <span class="material-symbols-outlined" aria-hidden="true">view_carousel</span>
+                </div>
+                <div>
+                    <span class="label">Landing Page</span>
+                    <h2>Current 4-image rotation</h2>
+                    <p>These are the exact images visitors see on the landing page carousel, in order. The first image appears when the page loads, then it changes every 5 seconds.</p>
+                </div>
+                <div class="carousel-preview-grid" aria-label="Current landing page carousel images">
+                    @for (var index = 0; index < Model.LandingCarouselImages.Count; index++)
+                    {
+                        var imageUrl = Model.LandingCarouselImages[index];
+                        var isOpeningSlide = index == 0;
+                        <figure class="carousel-preview-card">
+                            <img src="@imageUrl" alt="Landing carousel slide @(index + 1)">
+                            <figcaption>
+                                <span>Slide @(index + 1)</span>
+                                @if (isOpeningSlide)
+                                {
+                                    <strong>Opens first</strong>
+                                }
+                                else
+                                {
+                                    <strong>After @(index * 5)s</strong>
+                                }
+                            </figcaption>
+                        </figure>
+                    }
+                </div>
+            </article>
+
+            <article class="admin-card admin-card--wide reveal">
+                <div class="admin-card__icon admin-card__icon--soft">
+                    <span class="material-symbols-outlined" aria-hidden="true">accessibility_new</span>
+                </div>
+                <div>
+                    <span class="label">Accessibility</span>
+                    <h2>Visitor comfort controls</h2>
+                    <p>Checklist for keeping the site usable across motion preferences, contrast needs, keyboard navigation, and responsive layouts.</p>
+                </div>
+                <div class="accessibility-list" aria-label="Accessibility setup list">
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        Reduced-motion support
+                    </label>
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        Keyboard-friendly navigation
+                    </label>
+                    <label>
+                        <input type="checkbox" checked disabled>
+                        Responsive dock layout
+                    </label>
+                    <label>
+                        <input type="checkbox" disabled>
+                        Production admin authentication
+                    </label>
+                </div>
+            </article>
+        </div>
+
+        <section class="admin-library reveal" aria-labelledby="image-library-title">
+            <div class="section-head">
+                <div>
+                    <h2 id="image-library-title">Image Library</h2>
+                    <p>Uploaded images are stored locally for now. Select one to become the landing page background.</p>
+                </div>
+            </div>
+
+            @if (Model.UploadedImages.Count == 0)
+            {
+                <div class="empty-library">
+                    <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+                    <p>No admin uploads yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="admin-image-grid">
+                    @foreach (var image in Model.UploadedImages)
+                    {
+                        var isCurrent = image.Url == Model.CurrentLandingBackground;
+                        <article class="admin-image-card">
+                            <img src="@image.Url" alt="@image.DisplayName">
+                            <div class="admin-image-card__body">
+                                <span>@image.DisplayName</span>
+                                @if (isCurrent)
+                                {
+                                    <strong>Landing background</strong>
+                                }
+                                else
+                                {
+                                    <form asp-action="SetLandingBackground" asp-controller="Home" method="post">
+                                        <input type="hidden" name="imageUrl" value="@image.Url">
+                                        <button type="submit">Set background</button>
+                                    </form>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+</section>

@@ -1,0 +1,123 @@
+@model HomeViewModel
+
+@{
+    ViewData["Title"] = "NZO.";
+    var landingImages = Model.LandingCarouselImages.Count > 0
+        ? Model.LandingCarouselImages
+        : new[] { "/images/lumina/hero.jpg" };
+}
+
+<section class="hero" id="home">
+    <div class="hero__media" id="hero-carousel" aria-label="Landing page image carousel">
+        @for (var index = 0; index < landingImages.Count; index++)
+        {
+            var isActive = index == 0 ? "hero__slide--active" : string.Empty;
+            <img class="hero__slide @isActive" src="@landingImages[index]" alt="Cinematic photography background @(index + 1)">
+        }
+        <div class="hero__gradient"></div>
+    </div>
+    <div class="hero__content">
+        <h1>NZO.</h1>
+        <p>Transcending the ordinary through technical mastery and emotional resonance. A photographic journey across light and shadow.</p>
+    </div>
+    <a class="hero__explore" href="#gallery" aria-label="Explore the gallery">
+        <span>Explore</span>
+        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+    </a>
+</section>
+
+<section class="featured-section" id="gallery">
+    <div class="lumina-container">
+        <div class="section-head reveal">
+            <div>
+                <h2>Featured Series</h2>
+                <p>Curated collections exploring the intersection of structure, nature, and humanity.</p>
+            </div>
+            <a class="soft-button" href="#journal">
+                View All Works
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+            </a>
+        </div>
+
+        <div class="series-grid">
+            <article class="series-card reveal tilt-card">
+                <div class="image-window">
+                    <div class="window-bar">
+                        <span class="traffic traffic--red"></span>
+                        <span class="traffic traffic--yellow"></span>
+                        <span class="traffic traffic--green"></span>
+                        <span class="window-title">Structure_01.jpg</span>
+                    </div>
+                    <div class="image-window__frame">
+                        <img src="~/images/lumina/architecture.jpg" alt="Glass architecture photographed from below">
+                    </div>
+                </div>
+                <div class="series-card__copy">
+                    <span>Series 01</span>
+                    <h3>Architecture</h3>
+                    <p>Exploring the mathematical beauty of the modern urban landscape.</p>
+                </div>
+            </article>
+
+            <article class="series-card reveal tilt-card">
+                <div class="image-window image-window--plain">
+                    <div class="image-window__frame">
+                        <img src="~/images/lumina/nature.jpg" alt="Forest path with sunlight cutting through trees">
+                    </div>
+                </div>
+                <div class="series-card__copy">
+                    <span>Series 02</span>
+                    <h3>Nature</h3>
+                    <p>Unveiling the quiet drama found within the world's untamed spaces.</p>
+                </div>
+            </article>
+
+            <article class="series-card reveal tilt-card">
+                <div class="image-window image-window--plain">
+                    <div class="image-window__frame">
+                        <img src="~/images/lumina/portraiture.jpg" alt="Editorial portrait of a woman in a black turtleneck">
+                    </div>
+                </div>
+                <div class="series-card__copy">
+                    <span>Series 03</span>
+                    <h3>Portraiture</h3>
+                    <p>Documenting the human condition through honest, light-filled moments.</p>
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="philosophy-section" id="journal">
+    <div class="lumina-container">
+        <div class="bento-grid">
+            <article class="bento-card bento-card--feature reveal">
+                <span class="label">Our Philosophy</span>
+                <h2>Focusing on the essence, not the clutter.</h2>
+                <p>NZO was founded on the principle that photography should be a silent witness. We strip away the unnecessary to reveal the raw, honest beauty of our subjects.</p>
+                <div class="established">
+                    <span class="established__icon material-symbols-outlined" aria-hidden="true">camera</span>
+                    <span>Est. 2012</span>
+                </div>
+            </article>
+
+            <article class="bento-card bento-card--blue reveal" id="studio">
+                <div>
+                    <h3>Technical Mastery</h3>
+                    <p>Utilizing the latest in optical technology and digital processing to ensure archival quality in every frame.</p>
+                </div>
+                <span class="material-symbols-outlined bento-card__watermark" aria-hidden="true">settings_suggest</span>
+            </article>
+
+            <article class="bento-card bento-card--stat bento-card--dim reveal">
+                <strong>24k</strong>
+                <span>Moments Captured</span>
+            </article>
+
+            <article class="bento-card bento-card--stat reveal">
+                <strong>15</strong>
+                <span>Global Awards</span>
+            </article>
+        </div>
+    </div>
+</section>

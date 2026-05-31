@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Mvc;
 using Personal.Models;
 
@@ -17,10 +19,12 @@ public class HomeController : Controller
     ];
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private readonly IConfiguration _configuration;
     private readonly IWebHostEnvironment _environment;
 
-    public HomeController(IWebHostEnvironment environment)
+    public HomeController(IConfiguration configuration, IWebHostEnvironment environment)
     {
+        _configuration = configuration;
         _environment = environment;
     }
 
@@ -52,9 +56,8 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Admin));
         }
 
-        var uploadedUrls = new List<string>();
-        var uploadDirectory = GetUploadDirectory();
-        Directory.CreateDirectory(uploadDirectory);
+        var settings = GetSettings();
+        var uploadedImages = new List<UploadedImageRecord>();
 
         foreach (var image in images.Where(image => image.Length > 0))
         {
@@ -65,25 +68,23 @@ public class HomeController : Controller
                 return RedirectToAction(nameof(Admin));
             }
 
-            var fileName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}{extension}";
-            var filePath = Path.Combine(uploadDirectory, fileName);
-
-            await using var stream = System.IO.File.Create(filePath);
-            await image.CopyToAsync(stream);
-
-            uploadedUrls.Add($"/uploads/admin/{fileName}");
+            uploadedImages.Add(await UploadImage(image, extension));
         }
 
-        if (uploadedUrls.Count == 0)
+        if (uploadedImages.Count == 0)
         {
             TempData["AdminMessage"] = "No image files were uploaded.";
             return RedirectToAction(nameof(Admin));
         }
 
+        settings.UploadedImages.InsertRange(0, uploadedImages);
+
         if (useAsLandingBackground)
         {
-            SaveSettings(new SiteSettings { LandingBackground = uploadedUrls[0] });
+            settings.LandingBackground = uploadedImages[0].Url;
         }
+
+        SaveSettings(settings);
 
         TempData["AdminMessage"] = useAsLandingBackground
             ? "Images uploaded. Landing background updated."
@@ -102,7 +103,10 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Admin));
         }
 
-        SaveSettings(new SiteSettings { LandingBackground = imageUrl });
+        var settings = GetSettings();
+        settings.LandingBackground = imageUrl;
+        SaveSettings(settings);
+
         TempData["AdminMessage"] = "Landing background updated.";
 
         return RedirectToAction(nameof(Admin));
@@ -116,20 +120,22 @@ public class HomeController : Controller
 
     private AdminViewModel CreateAdminViewModel()
     {
+        var settings = GetSettings();
+
         return new AdminViewModel
         {
-            CurrentLandingBackground = GetSettings().LandingBackground,
+            CurrentLandingBackground = settings.LandingBackground,
             LandingCarouselImages = GetLandingCarouselImages(),
-            UploadedImages = GetUploadedImages()
+            UploadedImages = GetUploadedImages(settings)
         };
     }
 
     private IReadOnlyList<string> GetLandingCarouselImages()
     {
-        var selectedBackground = GetSettings().LandingBackground;
-        var uploadedImages = GetUploadedImages().Select(image => image.Url);
+        var settings = GetSettings();
+        var uploadedImages = GetUploadedImages(settings).Select(image => image.Url);
 
-        return new[] { selectedBackground }
+        return new[] { settings.LandingBackground }
             .Concat(uploadedImages)
             .Concat(FallbackLandingCarouselImages)
             .Where(IsUsableCarouselImage)
@@ -148,15 +154,25 @@ public class HomeController : Controller
         return IsKnownImageUrl(imageUrl);
     }
 
-    private IReadOnlyList<UploadedImageViewModel> GetUploadedImages()
+    private IReadOnlyList<UploadedImageViewModel> GetUploadedImages(SiteSettings settings)
     {
+        var savedImages = settings.UploadedImages
+            .Where(image => !string.IsNullOrWhiteSpace(image.Url))
+            .Select(image => new UploadedImageViewModel
+            {
+                FileName = image.FileName,
+                Url = image.Url,
+                DisplayName = string.IsNullOrWhiteSpace(image.DisplayName) ? image.FileName : image.DisplayName,
+                CreatedAt = image.CreatedAt
+            });
+
         var uploadDirectory = GetUploadDirectory();
         if (!Directory.Exists(uploadDirectory))
         {
-            return [];
+            return savedImages.OrderByDescending(image => image.CreatedAt).ToList();
         }
 
-        return Directory
+        var localImages = Directory
             .EnumerateFiles(uploadDirectory)
             .Where(file => AllowedImageExtensions.Contains(Path.GetExtension(file).ToLowerInvariant()))
             .Select(file =>
@@ -170,6 +186,10 @@ public class HomeController : Controller
                     CreatedAt = System.IO.File.GetCreationTimeUtc(file)
                 };
             })
+            .Where(image => settings.UploadedImages.All(saved => saved.Url != image.Url));
+
+        return savedImages
+            .Concat(localImages)
             .OrderByDescending(image => image.CreatedAt)
             .ToList();
     }
@@ -201,6 +221,12 @@ public class HomeController : Controller
 
     private bool IsKnownImageUrl(string imageUrl)
     {
+        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+        {
+            return GetSettings().UploadedImages.Any(image => image.Url == imageUrl);
+        }
+
         if (!imageUrl.StartsWith("/uploads/admin/", StringComparison.Ordinal))
         {
             return false;
@@ -210,6 +236,81 @@ public class HomeController : Controller
         var filePath = Path.Combine(GetUploadDirectory(), fileName);
 
         return System.IO.File.Exists(filePath);
+    }
+
+    private async Task<UploadedImageRecord> UploadImage(IFormFile image, string extension)
+    {
+        var cloudinary = CreateCloudinaryClient();
+
+        if (cloudinary is not null)
+        {
+            await using var imageStream = image.OpenReadStream();
+            var uploadResult = await cloudinary.UploadAsync(new ImageUploadParams
+            {
+                File = new FileDescription(image.FileName, imageStream),
+                Folder = "nzo-website",
+                UseFilename = true,
+                UniqueFilename = true,
+                Overwrite = false
+            });
+
+            if (uploadResult.Error is not null)
+            {
+                throw new InvalidOperationException(uploadResult.Error.Message);
+            }
+
+            return new UploadedImageRecord
+            {
+                FileName = uploadResult.PublicId,
+                Url = uploadResult.SecureUrl?.ToString() ?? uploadResult.Url.ToString(),
+                DisplayName = image.FileName,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+        }
+
+        var uploadDirectory = GetUploadDirectory();
+        Directory.CreateDirectory(uploadDirectory);
+
+        var fileName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(uploadDirectory, fileName);
+
+        await using var stream = System.IO.File.Create(filePath);
+        await image.CopyToAsync(stream);
+
+        return new UploadedImageRecord
+        {
+            FileName = fileName,
+            Url = $"/uploads/admin/{fileName}",
+            DisplayName = image.FileName,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+    }
+
+    private Cloudinary? CreateCloudinaryClient()
+    {
+        var cloudinaryUrl = _configuration["CLOUDINARY_URL"];
+        if (!string.IsNullOrWhiteSpace(cloudinaryUrl))
+        {
+            var cloudinary = new Cloudinary(cloudinaryUrl);
+            cloudinary.Api.Secure = true;
+            return cloudinary;
+        }
+
+        var cloudName = _configuration["CLOUDINARY_CLOUD_NAME"];
+        var apiKey = _configuration["CLOUDINARY_API_KEY"];
+        var apiSecret = _configuration["CLOUDINARY_API_SECRET"];
+
+        if (string.IsNullOrWhiteSpace(cloudName) ||
+            string.IsNullOrWhiteSpace(apiKey) ||
+            string.IsNullOrWhiteSpace(apiSecret))
+        {
+            return null;
+        }
+
+        return new Cloudinary(new Account(cloudName, apiKey, apiSecret))
+        {
+            Api = { Secure = true }
+        };
     }
 
     private string GetUploadDirectory()

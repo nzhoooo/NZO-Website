@@ -34,11 +34,11 @@
                     </div>
                     <div>
                         <span>Gallery Source</span>
-                        <strong>Curated assets</strong>
+                        <strong>Cloudinary ready</strong>
                     </div>
                     <div>
                         <span>Upload Flow</span>
-                        <strong>Local admin</strong>
+                        <strong>Admin library</strong>
                     </div>
                 </div>
             </article>
@@ -49,7 +49,7 @@
                 </div>
                 <span class="label">Publishing</span>
                 <h2>Upload images</h2>
-                <p>Add images to the local admin library. You can also use the first uploaded image as the landing page background.</p>
+                <p>Add images to the admin library. In production these upload to Cloudinary when your credentials are configured.</p>
                 <form class="upload-form" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
                     <label class="file-drop">
                         <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
@@ -155,7 +155,7 @@
             <div class="section-head">
                 <div>
                     <h2 id="image-library-title">Image Library</h2>
-                    <p>Uploaded images are stored locally for now. Select one to become the landing page background.</p>
+                    <p>Uploaded images appear here. Select one to become the landing page background and first carousel slide.</p>
                 </div>
             </div>
 

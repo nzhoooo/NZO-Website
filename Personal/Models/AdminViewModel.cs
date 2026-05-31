@@ -23,4 +23,17 @@ public sealed class UploadedImageViewModel
 public sealed class SiteSettings
 {
     public string LandingBackground { get; set; } = "/images/lumina/hero.jpg";
+
+    public List<UploadedImageRecord> UploadedImages { get; set; } = [];
+}
+
+public sealed class UploadedImageRecord
+{
+    public string FileName { get; set; } = string.Empty;
+
+    public string Url { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

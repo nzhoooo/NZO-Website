@@ -53,9 +53,16 @@
                 <form class="upload-form" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
                     <label class="file-drop">
                         <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
-                        <span>Choose images</span>
-                        <input type="file" name="images" accept="image/*" multiple required>
+                        <span data-upload-label>Add images</span>
+                        <input type="file" name="images" accept="image/*" multiple required data-upload-input>
                     </label>
+                    <div class="upload-preview" data-upload-preview hidden>
+                        <div class="upload-preview__head">
+                            <span>Ready to upload</span>
+                            <button type="button" data-upload-clear>Clear</button>
+                        </div>
+                        <div class="upload-preview__grid" data-upload-preview-grid></div>
+                    </div>
                     <label class="admin-check">
                         <input type="checkbox" name="useAsLandingBackground" value="true">
                         Set first upload as landing background
@@ -116,6 +123,23 @@
                                     <strong>After @(index * 5)s</strong>
                                 }
                             </figcaption>
+                            <form class="carousel-slide-form" asp-action="SetCarouselSlide" asp-controller="Home" method="post">
+                                <input type="hidden" name="slideIndex" value="@index">
+                                <select name="imageUrl" aria-label="Image for slide @(index + 1)">
+                                    @foreach (var option in Model.CarouselImageOptions)
+                                    {
+                                        if (option.Url == imageUrl)
+                                        {
+                                            <option value="@option.Url" selected>@option.DisplayName</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@option.Url">@option.DisplayName</option>
+                                        }
+                                    }
+                                </select>
+                                <button type="submit">Set slide</button>
+                            </form>
                         </figure>
                     }
                 </div>
@@ -155,7 +179,7 @@
             <div class="section-head">
                 <div>
                     <h2 id="image-library-title">Image Library</h2>
-                    <p>Uploaded images appear here. Select one to become the landing page background and first carousel slide.</p>
+                    <p>Uploaded images appear here. Select one to become the landing page background or assign it to a carousel slot.</p>
                 </div>
             </div>
 
@@ -168,28 +192,74 @@
             }
             else
             {
-                <div class="admin-image-grid">
-                    @foreach (var image in Model.UploadedImages)
-                    {
-                        var isCurrent = image.Url == Model.CurrentLandingBackground;
-                        <article class="admin-image-card">
-                            <img src="@image.Url" alt="@image.DisplayName">
-                            <div class="admin-image-card__body">
-                                <span>@image.DisplayName</span>
-                                @if (isCurrent)
-                                {
-                                    <strong>Landing background</strong>
-                                }
-                                else
-                                {
-                                    <form asp-action="SetLandingBackground" asp-controller="Home" method="post">
-                                        <input type="hidden" name="imageUrl" value="@image.Url">
-                                        <button type="submit">Set background</button>
-                                    </form>
-                                }
+                <div class="finder-window">
+                    <div class="finder-window__bar" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <div class="finder-window__body">
+                        <aside class="finder-sidebar" aria-label="Image library folders">
+                            <div class="finder-sidebar__item finder-sidebar__item--active">
+                                <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+                                Admin uploads
                             </div>
-                        </article>
-                    }
+                            <div class="finder-sidebar__item">
+                                <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
+                                Cloudinary
+                            </div>
+                        </aside>
+                        <div class="finder-list" role="table" aria-label="Uploaded images">
+                            <div class="finder-list__head" role="row">
+                                <span role="columnheader">Name</span>
+                                <span role="columnheader">Source</span>
+                                <span role="columnheader">Added</span>
+                                <span role="columnheader">Actions</span>
+                            </div>
+                            @foreach (var image in Model.UploadedImages)
+                            {
+                                var isCurrent = image.Url == Model.CurrentLandingBackground;
+                                var sourceLabel = image.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? "Cloudinary" : "Local";
+                                <div class="finder-row" role="row">
+                                    <div class="finder-row__name" role="cell">
+                                        <img src="@image.Url" alt="@image.DisplayName">
+                                        <span>@image.DisplayName</span>
+                                    </div>
+                                    <span role="cell">@sourceLabel</span>
+                                    <span role="cell">@image.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                                    <div class="finder-row__actions" role="cell">
+                                        @if (isCurrent)
+                                        {
+                                            <strong>Background</strong>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="SetLandingBackground" asp-controller="Home" method="post">
+                                                <input type="hidden" name="imageUrl" value="@image.Url">
+                                                <button type="submit">Background</button>
+                                            </form>
+                                        }
+                                        @for (var index = 0; index < 4; index++)
+                                        {
+                                            var isSlide = Model.LandingCarouselImages.Count > index && Model.LandingCarouselImages[index] == image.Url;
+                                            if (isSlide)
+                                            {
+                                                <strong>S@(index + 1)</strong>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="SetCarouselSlide" asp-controller="Home" method="post">
+                                                    <input type="hidden" name="slideIndex" value="@index">
+                                                    <input type="hidden" name="imageUrl" value="@image.Url">
+                                                    <button type="submit">S@(index + 1)</button>
+                                                </form>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
                 </div>
             }
         </section>

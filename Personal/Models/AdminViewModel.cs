@@ -6,6 +6,8 @@ public sealed class AdminViewModel
 
     public IReadOnlyList<string> LandingCarouselImages { get; init; } = [];
 
+    public IReadOnlyList<CarouselImageOption> CarouselImageOptions { get; init; } = [];
+
     public IReadOnlyList<UploadedImageViewModel> UploadedImages { get; init; } = [];
 }
 
@@ -24,7 +26,16 @@ public sealed class SiteSettings
 {
     public string LandingBackground { get; set; } = "/images/lumina/hero.jpg";
 
+    public List<string> LandingCarouselImages { get; set; } = [];
+
     public List<UploadedImageRecord> UploadedImages { get; set; } = [];
+}
+
+public sealed class CarouselImageOption
+{
+    public required string Url { get; init; }
+
+    public required string DisplayName { get; init; }
 }
 
 public sealed class UploadedImageRecord

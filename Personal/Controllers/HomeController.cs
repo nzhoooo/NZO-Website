@@ -17,6 +17,13 @@ public class HomeController : Controller
         "/images/lumina/nature.jpg",
         "/images/lumina/portraiture.jpg"
     ];
+    private static readonly Dictionary<string, string> FallbackImageNames = new(StringComparer.Ordinal)
+    {
+        ["/images/lumina/hero.jpg"] = "Default hero",
+        ["/images/lumina/architecture.jpg"] = "Default architecture",
+        ["/images/lumina/nature.jpg"] = "Default nature",
+        ["/images/lumina/portraiture.jpg"] = "Default portraiture"
+    };
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly IConfiguration _configuration;
@@ -58,8 +65,9 @@ public class HomeController : Controller
 
         var settings = GetSettings();
         var uploadedImages = new List<UploadedImageRecord>();
+        var imagesToUpload = images.Where(image => image.Length > 0).ToList();
 
-        foreach (var image in images.Where(image => image.Length > 0))
+        foreach (var image in imagesToUpload)
         {
             var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
             if (!AllowedImageExtensions.Contains(extension))
@@ -67,6 +75,11 @@ public class HomeController : Controller
                 TempData["AdminMessage"] = "Only JPG, PNG, WEBP, and GIF images can be uploaded.";
                 return RedirectToAction(nameof(Admin));
             }
+        }
+
+        foreach (var image in imagesToUpload)
+        {
+            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
 
             uploadedImages.Add(await UploadImage(image, extension));
         }
@@ -82,6 +95,7 @@ public class HomeController : Controller
         if (useAsLandingBackground)
         {
             settings.LandingBackground = uploadedImages[0].Url;
+            SetCarouselSlot(settings, 0, uploadedImages[0].Url);
         }
 
         SaveSettings(settings);
@@ -105,9 +119,35 @@ public class HomeController : Controller
 
         var settings = GetSettings();
         settings.LandingBackground = imageUrl;
+        SetCarouselSlot(settings, 0, imageUrl);
         SaveSettings(settings);
 
         TempData["AdminMessage"] = "Landing background updated.";
+
+        return RedirectToAction(nameof(Admin));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetCarouselSlide(int slideIndex, string imageUrl)
+    {
+        if (slideIndex is < 0 or > 3 || string.IsNullOrWhiteSpace(imageUrl) || !IsUsableCarouselImage(imageUrl))
+        {
+            TempData["AdminMessage"] = "Choose a valid carousel slide image.";
+            return RedirectToAction(nameof(Admin));
+        }
+
+        var settings = GetSettings();
+        SetCarouselSlot(settings, slideIndex, imageUrl);
+
+        if (slideIndex == 0)
+        {
+            settings.LandingBackground = imageUrl;
+        }
+
+        SaveSettings(settings);
+
+        TempData["AdminMessage"] = $"Slide {slideIndex + 1} updated.";
 
         return RedirectToAction(nameof(Admin));
     }
@@ -125,22 +165,67 @@ public class HomeController : Controller
         return new AdminViewModel
         {
             CurrentLandingBackground = settings.LandingBackground,
-            LandingCarouselImages = GetLandingCarouselImages(),
+            LandingCarouselImages = GetLandingCarouselImages(settings),
+            CarouselImageOptions = GetCarouselImageOptions(settings),
             UploadedImages = GetUploadedImages(settings)
         };
     }
 
     private IReadOnlyList<string> GetLandingCarouselImages()
     {
-        var settings = GetSettings();
-        var uploadedImages = GetUploadedImages(settings).Select(image => image.Url);
+        return GetLandingCarouselImages(GetSettings());
+    }
 
-        return new[] { settings.LandingBackground }
-            .Concat(uploadedImages)
+    private IReadOnlyList<string> GetLandingCarouselImages(SiteSettings settings)
+    {
+        var fallbackPool = new[] { settings.LandingBackground }
+            .Concat(GetUploadedImages(settings).Select(image => image.Url))
             .Concat(FallbackLandingCarouselImages)
             .Where(IsUsableCarouselImage)
             .Distinct(StringComparer.Ordinal)
-            .Take(4)
+            .ToList();
+
+        var carouselImages = new List<string>();
+        for (var index = 0; index < 4; index++)
+        {
+            var configuredImage = settings.LandingCarouselImages.Count > index
+                ? settings.LandingCarouselImages[index]
+                : string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(configuredImage) && IsUsableCarouselImage(configuredImage))
+            {
+                carouselImages.Add(configuredImage);
+                continue;
+            }
+
+            var fallbackImage = fallbackPool.FirstOrDefault(image => !carouselImages.Contains(image, StringComparer.Ordinal));
+            if (fallbackImage is not null)
+            {
+                carouselImages.Add(fallbackImage);
+            }
+        }
+
+        return carouselImages;
+    }
+
+    private IReadOnlyList<CarouselImageOption> GetCarouselImageOptions(SiteSettings settings)
+    {
+        var uploadedOptions = GetUploadedImages(settings).Select(image => new CarouselImageOption
+        {
+            Url = image.Url,
+            DisplayName = image.DisplayName
+        });
+
+        var fallbackOptions = FallbackLandingCarouselImages.Select(imageUrl => new CarouselImageOption
+        {
+            Url = imageUrl,
+            DisplayName = FallbackImageNames[imageUrl]
+        });
+
+        return uploadedOptions
+            .Concat(fallbackOptions)
+            .GroupBy(option => option.Url, StringComparer.Ordinal)
+            .Select(group => group.First())
             .ToList();
     }
 
@@ -217,6 +302,16 @@ public class HomeController : Controller
     {
         Directory.CreateDirectory(GetSettingsDirectory());
         System.IO.File.WriteAllText(GetSettingsPath(), JsonSerializer.Serialize(settings, JsonOptions));
+    }
+
+    private static void SetCarouselSlot(SiteSettings settings, int slideIndex, string imageUrl)
+    {
+        while (settings.LandingCarouselImages.Count < 4)
+        {
+            settings.LandingCarouselImages.Add(string.Empty);
+        }
+
+        settings.LandingCarouselImages[slideIndex] = imageUrl;
     }
 
     private bool IsKnownImageUrl(string imageUrl)

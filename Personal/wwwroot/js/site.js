@@ -72,6 +72,135 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const uploadInput = document.querySelector("[data-upload-input]");
+  const uploadLabel = document.querySelector("[data-upload-label]");
+  const uploadPreview = document.querySelector("[data-upload-preview]");
+  const uploadPreviewGrid = document.querySelector("[data-upload-preview-grid]");
+  const uploadClear = document.querySelector("[data-upload-clear]");
+  let selectedUploadFiles = [];
+  let uploadPreviewUrls = [];
+
+  const clearUploadPreviewUrls = () => {
+    uploadPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    uploadPreviewUrls = [];
+  };
+
+  const formatFileSize = (size) => {
+    if (size < 1024 * 1024) {
+      return `${Math.max(1, Math.round(size / 1024))} KB`;
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const resetUploadPreview = () => {
+    clearUploadPreviewUrls();
+    selectedUploadFiles = [];
+
+    if (uploadPreviewGrid) {
+      uploadPreviewGrid.replaceChildren();
+    }
+
+    if (uploadPreview) {
+      uploadPreview.hidden = true;
+    }
+
+    if (uploadLabel) {
+      uploadLabel.textContent = "Add images";
+    }
+  };
+
+  const syncUploadInputFiles = () => {
+    if (!uploadInput || typeof DataTransfer === "undefined") {
+      return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    selectedUploadFiles.forEach((file) => dataTransfer.items.add(file));
+    uploadInput.files = dataTransfer.files;
+  };
+
+  const renderUploadPreview = () => {
+    clearUploadPreviewUrls();
+
+    if (uploadPreviewGrid) {
+      uploadPreviewGrid.replaceChildren();
+    }
+
+    if (selectedUploadFiles.length === 0) {
+      if (uploadPreview) {
+        uploadPreview.hidden = true;
+      }
+
+      if (uploadLabel) {
+        uploadLabel.textContent = "Add images";
+      }
+
+      syncUploadInputFiles();
+      return;
+    }
+
+    if (uploadLabel) {
+      uploadLabel.textContent = `${selectedUploadFiles.length} image${selectedUploadFiles.length === 1 ? "" : "s"} selected`;
+    }
+
+    selectedUploadFiles.forEach((file, index) => {
+      const imageUrl = URL.createObjectURL(file);
+      uploadPreviewUrls.push(imageUrl);
+
+      const card = document.createElement("article");
+      card.className = "upload-preview-card";
+
+      const image = document.createElement("img");
+      image.src = imageUrl;
+      image.alt = file.name;
+
+      const body = document.createElement("div");
+      body.className = "upload-preview-card__body";
+
+      const name = document.createElement("span");
+      name.textContent = file.name;
+
+      const meta = document.createElement("strong");
+      meta.textContent = index === 0 ? `${formatFileSize(file.size)} | first` : formatFileSize(file.size);
+
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.textContent = "Remove";
+      removeButton.addEventListener("click", () => {
+        selectedUploadFiles.splice(index, 1);
+        renderUploadPreview();
+      });
+
+      body.append(name, meta, removeButton);
+      card.append(image, body);
+      uploadPreviewGrid.append(card);
+    });
+
+    if (uploadPreview) {
+      uploadPreview.hidden = false;
+    }
+
+    syncUploadInputFiles();
+  };
+
+  if (uploadInput && uploadPreview && uploadPreviewGrid) {
+    uploadInput.addEventListener("change", () => {
+      const incomingFiles = [...uploadInput.files].filter((file) => file.type.startsWith("image/"));
+      const existingFileKeys = new Set(selectedUploadFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+      const newFiles = incomingFiles.filter((file) => !existingFileKeys.has(`${file.name}:${file.size}:${file.lastModified}`));
+      selectedUploadFiles = selectedUploadFiles.concat(newFiles);
+      renderUploadPreview();
+    });
+  }
+
+  if (uploadInput && uploadClear) {
+    uploadClear.addEventListener("click", () => {
+      uploadInput.value = "";
+      resetUploadPreview();
+    });
+  }
+
   const revealItems = document.querySelectorAll(".reveal");
   if ("IntersectionObserver" in window && !motionQuery.matches) {
     const revealObserver = new IntersectionObserver((entries) => {

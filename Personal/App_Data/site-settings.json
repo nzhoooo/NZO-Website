@@ -1,3 +1,23 @@
 {
-  "LandingBackground": "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg"
+  "LandingBackground": "/uploads/admin/20260531141834-2bb7e60fa1a4499b82007b9cc77471a0.jpg",
+  "LandingCarouselImages": [
+    "/uploads/admin/20260531141834-2bb7e60fa1a4499b82007b9cc77471a0.jpg",
+    "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg",
+    "/uploads/admin/20260530105406-197e8079fc8f41d79e86b4ec155d16ec.jpg",
+    "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg"
+  ],
+  "UploadedImages": [
+    {
+      "FileName": "20260531141834-2bb7e60fa1a4499b82007b9cc77471a0.jpg",
+      "Url": "/uploads/admin/20260531141834-2bb7e60fa1a4499b82007b9cc77471a0.jpg",
+      "DisplayName": "NZO09544.jpg",
+      "CreatedAt": "2026-05-31T14:18:34.810528+00:00"
+    },
+    {
+      "FileName": "20260531141834-1ec15b6e81424c0aae61553f696c070d.jpg",
+      "Url": "/uploads/admin/20260531141834-1ec15b6e81424c0aae61553f696c070d.jpg",
+      "DisplayName": "NZO09600.jpg",
+      "CreatedAt": "2026-05-31T14:18:34.812363+00:00"
+    }
+  ]
 }

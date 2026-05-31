@@ -9,6 +9,12 @@ public sealed class AdminViewModel
     public IReadOnlyList<CarouselImageOption> CarouselImageOptions { get; init; } = [];
 
     public IReadOnlyList<UploadedImageViewModel> UploadedImages { get; init; } = [];
+
+    public string CurrentLibrarySource { get; init; } = "local";
+
+    public string CurrentCloudinaryFolder { get; init; } = string.Empty;
+
+    public IReadOnlyList<CloudinaryFolderViewModel> CloudinaryFolders { get; init; } = [];
 }
 
 public sealed class UploadedImageViewModel
@@ -19,7 +25,20 @@ public sealed class UploadedImageViewModel
 
     public string DisplayName { get; init; } = string.Empty;
 
+    public string Source { get; init; } = "local";
+
     public DateTimeOffset CreatedAt { get; init; }
+}
+
+public sealed class CloudinaryFolderViewModel
+{
+    public required string Name { get; init; }
+
+    public required string Folder { get; init; }
+
+    public required string Path { get; init; }
+
+    public bool IsRoot { get; init; }
 }
 
 public sealed class SiteSettings

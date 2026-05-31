@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Admin Setup";
+    var cloudinaryTargetLabel = string.IsNullOrWhiteSpace(Model.CurrentCloudinaryFolder)
+        ? "Cloudinary root"
+        : $"Cloudinary / {Model.CurrentCloudinaryFolder}";
 }
 
 <section class="admin-shell">
@@ -49,8 +52,14 @@
                 </div>
                 <span class="label">Publishing</span>
                 <h2>Upload images</h2>
-                <p>Add images to the admin library. In production these upload to Cloudinary when your credentials are configured.</p>
+                <p>Add images to the selected library. Cloudinary uploads go into the active Cloudinary folder.</p>
                 <form class="upload-form" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                    <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                    <div class="upload-target-pill">
+                        <span class="material-symbols-outlined" aria-hidden="true">@(Model.CurrentLibrarySource == "cloudinary" ? "cloud_done" : "folder")</span>
+                        <span>@(Model.CurrentLibrarySource == "cloudinary" ? cloudinaryTargetLabel : "Admin uploads")</span>
+                    </div>
                     <label class="file-drop">
                         <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
                         <span data-upload-label>Add images</span>
@@ -125,6 +134,8 @@
                             </figcaption>
                             <form class="carousel-slide-form" asp-action="SetCarouselSlide" asp-controller="Home" method="post">
                                 <input type="hidden" name="slideIndex" value="@index">
+                                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
                                 <select name="imageUrl" aria-label="Image for slide @(index + 1)">
                                     @foreach (var option in Model.CarouselImageOptions)
                                     {
@@ -183,32 +194,54 @@
                 </div>
             </div>
 
-            @if (Model.UploadedImages.Count == 0)
-            {
-                <div class="empty-library">
-                    <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
-                    <p>No admin uploads yet.</p>
+            <div class="finder-window">
+                <div class="finder-window__bar" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
                 </div>
-            }
-            else
-            {
-                <div class="finder-window">
-                    <div class="finder-window__bar" aria-hidden="true">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <div class="finder-window__body">
-                        <aside class="finder-sidebar" aria-label="Image library folders">
-                            <div class="finder-sidebar__item finder-sidebar__item--active">
-                                <span class="material-symbols-outlined" aria-hidden="true">folder</span>
-                                Admin uploads
+                <div class="finder-window__body">
+                    <aside class="finder-sidebar" aria-label="Image library folders">
+                        <a class="finder-sidebar__item @(Model.CurrentLibrarySource == "local" ? "finder-sidebar__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-librarySource="local">
+                            <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+                            Admin uploads
+                        </a>
+                        <a class="finder-sidebar__item @(Model.CurrentLibrarySource == "cloudinary" ? "finder-sidebar__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-librarySource="cloudinary">
+                            <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
+                            Cloudinary
+                        </a>
+                        <div class="finder-sidebar__folder-list" aria-label="Cloudinary folders">
+                            @foreach (var folder in Model.CloudinaryFolders)
+                            {
+                                <a class="finder-sidebar__subitem @(Model.CurrentLibrarySource == "cloudinary" && Model.CurrentCloudinaryFolder == folder.Folder ? "finder-sidebar__subitem--active" : string.Empty)"
+                                   asp-action="Admin"
+                                   asp-controller="Home"
+                                   asp-route-librarySource="cloudinary"
+                                   asp-route-cloudinaryFolder="@folder.Folder">
+                                    <span class="material-symbols-outlined" aria-hidden="true">@(folder.IsRoot ? "home_storage" : "folder_open")</span>
+                                    @folder.Name
+                                </a>
+                            }
+                        </div>
+                        <form class="cloud-folder-form" asp-action="CreateCloudinaryFolder" asp-controller="Home" method="post">
+                            <label for="cloudinary-folder-name">New Cloudinary folder</label>
+                            <div>
+                                <input id="cloudinary-folder-name" name="folderName" type="text" placeholder="folder name" autocomplete="off">
+                                <button type="submit" aria-label="Create Cloudinary folder">
+                                    <span class="material-symbols-outlined" aria-hidden="true">create_new_folder</span>
+                                </button>
                             </div>
-                            <div class="finder-sidebar__item">
-                                <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
-                                Cloudinary
-                            </div>
-                        </aside>
+                        </form>
+                    </aside>
+                    @if (Model.UploadedImages.Count == 0)
+                    {
+                        <div class="empty-library">
+                            <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+                            <p>No @(Model.CurrentLibrarySource == "cloudinary" ? "Cloudinary files" : "local admin uploads") yet.</p>
+                        </div>
+                    }
+                    else
+                    {
                         <div class="finder-list" role="table" aria-label="Uploaded images">
                             <div class="finder-list__head" role="row">
                                 <span role="columnheader">Name</span>
@@ -219,7 +252,7 @@
                             @foreach (var image in Model.UploadedImages)
                             {
                                 var isCurrent = image.Url == Model.CurrentLandingBackground;
-                                var sourceLabel = image.Url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? "Cloudinary" : "Local";
+                                var sourceLabel = image.Source == "cloudinary" ? "Cloudinary" : "Local";
                                 <div class="finder-row" role="row">
                                     <div class="finder-row__name" role="cell">
                                         <img src="@image.Url" alt="@image.DisplayName">
@@ -236,6 +269,8 @@
                                         {
                                             <form asp-action="SetLandingBackground" asp-controller="Home" method="post">
                                                 <input type="hidden" name="imageUrl" value="@image.Url">
+                                                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
                                                 <button type="submit">Background</button>
                                             </form>
                                         }
@@ -251,17 +286,26 @@
                                                 <form asp-action="SetCarouselSlide" asp-controller="Home" method="post">
                                                     <input type="hidden" name="slideIndex" value="@index">
                                                     <input type="hidden" name="imageUrl" value="@image.Url">
+                                                    <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                    <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
                                                     <button type="submit">S@(index + 1)</button>
                                                 </form>
                                             }
                                         }
+                                        <form asp-action="RemoveUploadedImage" asp-controller="Home" method="post" data-confirm="Remove this image?">
+                                            <input type="hidden" name="imageUrl" value="@image.Url">
+                                            <input type="hidden" name="fileName" value="@image.FileName">
+                                            <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                            <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                            <button class="finder-row__remove" type="submit">Remove</button>
+                                        </form>
                                     </div>
                                 </div>
                             }
                         </div>
-                    </div>
+                    }
                 </div>
-            }
+            </div>
         </section>
     </div>
 </section>

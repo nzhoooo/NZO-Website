@@ -10,6 +10,9 @@ namespace Personal.Controllers;
 public class HomeController : Controller
 {
     private const string DefaultLandingBackground = "/images/lumina/hero.jpg";
+    private const string CloudinaryUploadFolder = "nzo-website";
+    private const string LocalLibrarySource = "local";
+    private const string CloudinaryLibrarySource = "cloudinary";
     private static readonly string[] FallbackLandingCarouselImages =
     [
         "/images/lumina/hero.jpg",
@@ -48,19 +51,41 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Admin()
+    public IActionResult Help()
     {
-        return View(CreateAdminViewModel());
+        return View();
+    }
+
+    public IActionResult Admin(string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
+    {
+        return View(CreateAdminViewModel(librarySource, cloudinaryFolder));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UploadImages(List<IFormFile> images, bool useAsLandingBackground)
+    public async Task<IActionResult> UploadImages(
+        List<IFormFile> images,
+        bool useAsLandingBackground,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
     {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
         if (images.Count == 0)
         {
             TempData["AdminMessage"] = "Choose at least one image to upload.";
-            return RedirectToAction(nameof(Admin));
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        if (librarySource == CloudinaryLibrarySource && CreateCloudinaryClient() is null)
+        {
+            TempData["AdminMessage"] = "Cloudinary is not configured yet.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
         var settings = GetSettings();
@@ -73,7 +98,7 @@ public class HomeController : Controller
             if (!AllowedImageExtensions.Contains(extension))
             {
                 TempData["AdminMessage"] = "Only JPG, PNG, WEBP, and GIF images can be uploaded.";
-                return RedirectToAction(nameof(Admin));
+                return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
             }
         }
 
@@ -81,13 +106,13 @@ public class HomeController : Controller
         {
             var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
 
-            uploadedImages.Add(await UploadImage(image, extension));
+            uploadedImages.Add(await UploadImage(image, extension, librarySource, cloudinaryFolder));
         }
 
         if (uploadedImages.Count == 0)
         {
             TempData["AdminMessage"] = "No image files were uploaded.";
-            return RedirectToAction(nameof(Admin));
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
         settings.UploadedImages.InsertRange(0, uploadedImages);
@@ -104,17 +129,55 @@ public class HomeController : Controller
             ? "Images uploaded. Landing background updated."
             : "Images uploaded.";
 
-        return RedirectToAction(nameof(Admin));
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetLandingBackground(string imageUrl)
+    public IActionResult CreateCloudinaryFolder(string folderName)
     {
+        var normalizedFolder = NormalizeCloudinaryFolder(folderName);
+        if (string.IsNullOrWhiteSpace(normalizedFolder))
+        {
+            TempData["AdminMessage"] = "Enter a folder name first.";
+            return RedirectToAction(nameof(Admin), new { librarySource = CloudinaryLibrarySource });
+        }
+
+        var cloudinary = CreateCloudinaryClient();
+        if (cloudinary is null)
+        {
+            TempData["AdminMessage"] = "Cloudinary is not configured yet.";
+            return RedirectToAction(nameof(Admin), new { librarySource = CloudinaryLibrarySource });
+        }
+
+        try
+        {
+            TryCreateCloudinaryFolder(cloudinary, CloudinaryUploadFolder);
+            cloudinary.CreateFolder(GetCloudinaryFolderPath(normalizedFolder));
+            TempData["AdminMessage"] = $"Cloudinary folder \"{normalizedFolder}\" is ready.";
+        }
+        catch
+        {
+            TempData["AdminMessage"] = "Cloudinary folder could not be created.";
+        }
+
+        return RedirectToAction(nameof(Admin), new { librarySource = CloudinaryLibrarySource, cloudinaryFolder = normalizedFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetLandingBackground(string imageUrl, string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
         if (string.IsNullOrWhiteSpace(imageUrl) || !IsKnownImageUrl(imageUrl))
         {
             TempData["AdminMessage"] = "Choose an uploaded image before setting the landing background.";
-            return RedirectToAction(nameof(Admin));
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
         var settings = GetSettings();
@@ -124,17 +187,23 @@ public class HomeController : Controller
 
         TempData["AdminMessage"] = "Landing background updated.";
 
-        return RedirectToAction(nameof(Admin));
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult SetCarouselSlide(int slideIndex, string imageUrl)
+    public IActionResult SetCarouselSlide(int slideIndex, string imageUrl, string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
     {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
         if (slideIndex is < 0 or > 3 || string.IsNullOrWhiteSpace(imageUrl) || !IsUsableCarouselImage(imageUrl))
         {
             TempData["AdminMessage"] = "Choose a valid carousel slide image.";
-            return RedirectToAction(nameof(Admin));
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
         var settings = GetSettings();
@@ -149,7 +218,56 @@ public class HomeController : Controller
 
         TempData["AdminMessage"] = $"Slide {slideIndex + 1} updated.";
 
-        return RedirectToAction(nameof(Admin));
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RemoveUploadedImage(string imageUrl, string fileName, string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            TempData["AdminMessage"] = "Choose an image to remove.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        var settings = GetSettings();
+        var removed = false;
+
+        if (IsCloudinaryImageUrl(imageUrl))
+        {
+            removed = RemoveCloudinaryImage(fileName);
+        }
+        else if (imageUrl.StartsWith("/uploads/admin/", StringComparison.Ordinal))
+        {
+            var localFileName = Path.GetFileName(imageUrl);
+            var localFilePath = Path.Combine(GetUploadDirectory(), localFileName);
+            if (System.IO.File.Exists(localFilePath))
+            {
+                System.IO.File.Delete(localFilePath);
+                removed = true;
+            }
+        }
+
+        var removedSavedRecords = settings.UploadedImages.RemoveAll(image => image.Url == imageUrl || image.FileName == fileName);
+        if (removed || removedSavedRecords > 0)
+        {
+            ClearImageReferences(settings, imageUrl);
+            SaveSettings(settings);
+            TempData["AdminMessage"] = "Image removed.";
+        }
+        else
+        {
+            TempData["AdminMessage"] = "Image could not be removed.";
+        }
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -158,16 +276,26 @@ public class HomeController : Controller
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 
-    private AdminViewModel CreateAdminViewModel()
+    private AdminViewModel CreateAdminViewModel(string librarySource, string cloudinaryFolder)
     {
         var settings = GetSettings();
+        var normalizedLibrarySource = NormalizeLibrarySource(librarySource);
+        var normalizedCloudinaryFolder = normalizedLibrarySource == CloudinaryLibrarySource
+            ? NormalizeCloudinaryFolder(cloudinaryFolder)
+            : string.Empty;
+        var uploadedImages = GetUploadedImages(settings, includeCloudinaryLibrary: true, cloudinaryFolder: normalizedCloudinaryFolder);
 
         return new AdminViewModel
         {
             CurrentLandingBackground = settings.LandingBackground,
-            LandingCarouselImages = GetLandingCarouselImages(settings),
-            CarouselImageOptions = GetCarouselImageOptions(settings),
-            UploadedImages = GetUploadedImages(settings)
+            LandingCarouselImages = GetLandingCarouselImages(settings, includeCloudinaryLibrary: true),
+            CarouselImageOptions = GetCarouselImageOptions(settings, includeCloudinaryLibrary: true),
+            UploadedImages = uploadedImages
+                .Where(image => image.Source == normalizedLibrarySource)
+                .ToList(),
+            CurrentLibrarySource = normalizedLibrarySource,
+            CurrentCloudinaryFolder = normalizedCloudinaryFolder,
+            CloudinaryFolders = GetCloudinaryFolders()
         };
     }
 
@@ -176,10 +304,10 @@ public class HomeController : Controller
         return GetLandingCarouselImages(GetSettings());
     }
 
-    private IReadOnlyList<string> GetLandingCarouselImages(SiteSettings settings)
+    private IReadOnlyList<string> GetLandingCarouselImages(SiteSettings settings, bool includeCloudinaryLibrary = false)
     {
         var fallbackPool = new[] { settings.LandingBackground }
-            .Concat(GetUploadedImages(settings).Select(image => image.Url))
+            .Concat(GetUploadedImages(settings, includeCloudinaryLibrary).Select(image => image.Url))
             .Concat(FallbackLandingCarouselImages)
             .Where(IsUsableCarouselImage)
             .Distinct(StringComparer.Ordinal)
@@ -208,9 +336,9 @@ public class HomeController : Controller
         return carouselImages;
     }
 
-    private IReadOnlyList<CarouselImageOption> GetCarouselImageOptions(SiteSettings settings)
+    private IReadOnlyList<CarouselImageOption> GetCarouselImageOptions(SiteSettings settings, bool includeCloudinaryLibrary = false)
     {
-        var uploadedOptions = GetUploadedImages(settings).Select(image => new CarouselImageOption
+        var uploadedOptions = GetUploadedImages(settings, includeCloudinaryLibrary).Select(image => new CarouselImageOption
         {
             Url = image.Url,
             DisplayName = image.DisplayName
@@ -239,8 +367,12 @@ public class HomeController : Controller
         return IsKnownImageUrl(imageUrl);
     }
 
-    private IReadOnlyList<UploadedImageViewModel> GetUploadedImages(SiteSettings settings)
+    private IReadOnlyList<UploadedImageViewModel> GetUploadedImages(
+        SiteSettings settings,
+        bool includeCloudinaryLibrary = false,
+        string cloudinaryFolder = "")
     {
+        var normalizedCloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
         var savedImages = settings.UploadedImages
             .Where(image => !string.IsNullOrWhiteSpace(image.Url))
             .Select(image => new UploadedImageViewModel
@@ -248,13 +380,22 @@ public class HomeController : Controller
                 FileName = image.FileName,
                 Url = image.Url,
                 DisplayName = string.IsNullOrWhiteSpace(image.DisplayName) ? image.FileName : image.DisplayName,
+                Source = IsCloudinaryImageUrl(image.Url) ? CloudinaryLibrarySource : LocalLibrarySource,
                 CreatedAt = image.CreatedAt
-            });
+            })
+            .Where(image => image.Source != CloudinaryLibrarySource || IsCloudinaryAssetInFolder(image.FileName, normalizedCloudinaryFolder));
+        IReadOnlyList<UploadedImageViewModel> cloudinaryImages = includeCloudinaryLibrary
+            ? GetCloudinaryUploadedImages(settings, normalizedCloudinaryFolder)
+            : [];
 
         var uploadDirectory = GetUploadDirectory();
         if (!Directory.Exists(uploadDirectory))
         {
-            return savedImages.OrderByDescending(image => image.CreatedAt).ToList();
+            return savedImages
+                .Concat(cloudinaryImages)
+                .DistinctBy(image => image.Url)
+                .OrderByDescending(image => image.CreatedAt)
+                .ToList();
         }
 
         var localImages = Directory
@@ -268,15 +409,117 @@ public class HomeController : Controller
                     FileName = fileName,
                     Url = $"/uploads/admin/{fileName}",
                     DisplayName = fileName,
+                    Source = LocalLibrarySource,
                     CreatedAt = System.IO.File.GetCreationTimeUtc(file)
                 };
             })
             .Where(image => settings.UploadedImages.All(saved => saved.Url != image.Url));
 
         return savedImages
+            .Concat(cloudinaryImages)
             .Concat(localImages)
+            .DistinctBy(image => image.Url)
             .OrderByDescending(image => image.CreatedAt)
             .ToList();
+    }
+
+    private IReadOnlyList<UploadedImageViewModel> GetCloudinaryUploadedImages(SiteSettings settings, string cloudinaryFolder = "")
+    {
+        var cloudinary = CreateCloudinaryClient();
+        if (cloudinary is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            var cloudinaryResources = new List<Resource>();
+            string? nextCursor = null;
+            var folderPath = GetCloudinaryFolderPath(NormalizeCloudinaryFolder(cloudinaryFolder));
+
+            do
+            {
+                var listedResources = cloudinary.ListResourcesByPrefix(folderPath, "upload", nextCursor);
+                cloudinaryResources.AddRange(listedResources.Resources);
+                nextCursor = listedResources.NextCursor;
+            }
+            while (!string.IsNullOrWhiteSpace(nextCursor) && cloudinaryResources.Count < 500);
+
+            return cloudinaryResources
+                .Where(resource => !string.IsNullOrWhiteSpace(resource.SecureUrl?.ToString() ?? resource.Url?.ToString()))
+                .Select(resource =>
+                {
+                    var resourceUrl = resource.SecureUrl?.ToString() ?? resource.Url?.ToString() ?? string.Empty;
+                    var publicId = resource.PublicId ?? resourceUrl;
+                    var displayName = settings.UploadedImages
+                        .FirstOrDefault(image => image.FileName == publicId || image.Url == resourceUrl)?
+                        .DisplayName;
+
+                    return new UploadedImageViewModel
+                    {
+                        FileName = publicId,
+                        Url = resourceUrl,
+                        DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileName(publicId) : displayName,
+                        Source = CloudinaryLibrarySource,
+                        CreatedAt = ParseCloudinaryCreatedAt(resource.CreatedAt)
+                    };
+                })
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private IReadOnlyList<CloudinaryFolderViewModel> GetCloudinaryFolders()
+    {
+        var folders = new List<CloudinaryFolderViewModel>
+        {
+            new()
+            {
+                Name = "Root",
+                Folder = string.Empty,
+                Path = CloudinaryUploadFolder,
+                IsRoot = true
+            }
+        };
+
+        var cloudinary = CreateCloudinaryClient();
+        if (cloudinary is null)
+        {
+            return folders;
+        }
+
+        try
+        {
+            var listedFolders = cloudinary.SubFolders(CloudinaryUploadFolder, new GetFoldersParams
+            {
+                MaxResults = 100
+            });
+
+            folders.AddRange(listedFolders.Folders
+                .Where(folder => !string.IsNullOrWhiteSpace(folder.Name))
+                .Select(folder =>
+                {
+                    var normalizedFolder = NormalizeCloudinaryFolder(folder.Name);
+                    return new CloudinaryFolderViewModel
+                    {
+                        Name = folder.Name,
+                        Folder = normalizedFolder,
+                        Path = folder.Path,
+                        IsRoot = false
+                    };
+                })
+                .Where(folder => !string.IsNullOrWhiteSpace(folder.Folder))
+                .OrderBy(folder => folder.Name, StringComparer.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return folders;
+        }
+
+        return folders;
     }
 
     private SiteSettings GetSettings()
@@ -314,12 +557,121 @@ public class HomeController : Controller
         settings.LandingCarouselImages[slideIndex] = imageUrl;
     }
 
+    private static void ClearImageReferences(SiteSettings settings, string imageUrl)
+    {
+        if (settings.LandingBackground == imageUrl)
+        {
+            settings.LandingBackground = DefaultLandingBackground;
+        }
+
+        for (var index = 0; index < settings.LandingCarouselImages.Count; index++)
+        {
+            if (settings.LandingCarouselImages[index] == imageUrl)
+            {
+                settings.LandingCarouselImages[index] = string.Empty;
+            }
+        }
+    }
+
+    private bool RemoveCloudinaryImage(string publicId)
+    {
+        var cloudinary = CreateCloudinaryClient();
+        if (cloudinary is null || string.IsNullOrWhiteSpace(publicId))
+        {
+            return false;
+        }
+
+        try
+        {
+            var result = cloudinary.Destroy(new DeletionParams(publicId)
+            {
+                ResourceType = ResourceType.Image,
+                Invalidate = true
+            });
+
+            return string.Equals(result.Result, "ok", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(result.Result, "not found", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryCreateCloudinaryFolder(Cloudinary cloudinary, string folderPath)
+    {
+        try
+        {
+            cloudinary.CreateFolder(folderPath);
+        }
+        catch
+        {
+            // The parent folder may already exist, which is fine for nested uploads.
+        }
+    }
+
+    private static DateTimeOffset ParseCloudinaryCreatedAt(string? createdAt)
+    {
+        return DateTimeOffset.TryParse(createdAt, out var parsed)
+            ? parsed
+            : DateTimeOffset.UtcNow;
+    }
+
+    private static string NormalizeLibrarySource(string? librarySource)
+    {
+        return string.Equals(librarySource, CloudinaryLibrarySource, StringComparison.OrdinalIgnoreCase)
+            ? CloudinaryLibrarySource
+            : LocalLibrarySource;
+    }
+
+    private static string NormalizeCloudinaryFolder(string? folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = new string(folderName
+            .Trim()
+            .Select(character =>
+            {
+                if (char.IsLetterOrDigit(character))
+                {
+                    return char.ToLowerInvariant(character);
+                }
+
+                return character is '-' or '_' or ' ' ? '-' : '\0';
+            })
+            .Where(character => character != '\0')
+            .ToArray());
+
+        return string.Join("-", normalized.Split('-', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static string GetCloudinaryFolderPath(string cloudinaryFolder)
+    {
+        return string.IsNullOrWhiteSpace(cloudinaryFolder)
+            ? CloudinaryUploadFolder
+            : $"{CloudinaryUploadFolder}/{cloudinaryFolder}";
+    }
+
+    private static bool IsCloudinaryAssetInFolder(string publicId, string cloudinaryFolder)
+    {
+        if (string.IsNullOrWhiteSpace(publicId))
+        {
+            return false;
+        }
+
+        var folderPath = GetCloudinaryFolderPath(cloudinaryFolder);
+        return publicId.StartsWith($"{folderPath}/", StringComparison.Ordinal);
+    }
+
     private bool IsKnownImageUrl(string imageUrl)
     {
         if (Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
         {
-            return GetSettings().UploadedImages.Any(image => image.Url == imageUrl);
+            return GetSettings().UploadedImages.Any(image => image.Url == imageUrl) || IsCloudinaryDeliveryUrl(uri);
         }
 
         if (!imageUrl.StartsWith("/uploads/admin/", StringComparison.Ordinal))
@@ -333,9 +685,26 @@ public class HomeController : Controller
         return System.IO.File.Exists(filePath);
     }
 
-    private async Task<UploadedImageRecord> UploadImage(IFormFile image, string extension)
+    private bool IsCloudinaryDeliveryUrl(Uri uri)
     {
-        var cloudinary = CreateCloudinaryClient();
+        var cloudName = GetConfiguredCloudName();
+        return !string.IsNullOrWhiteSpace(cloudName) &&
+               string.Equals(uri.Host, "res.cloudinary.com", StringComparison.OrdinalIgnoreCase) &&
+               uri.AbsolutePath.Contains($"/{cloudName}/image/upload/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsCloudinaryImageUrl(string imageUrl)
+    {
+        return Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) && IsCloudinaryDeliveryUrl(uri);
+    }
+
+    private async Task<UploadedImageRecord> UploadImage(
+        IFormFile image,
+        string extension,
+        string librarySource,
+        string cloudinaryFolder)
+    {
+        var cloudinary = librarySource == CloudinaryLibrarySource ? CreateCloudinaryClient() : null;
 
         if (cloudinary is not null)
         {
@@ -343,7 +712,7 @@ public class HomeController : Controller
             var uploadResult = await cloudinary.UploadAsync(new ImageUploadParams
             {
                 File = new FileDescription(image.FileName, imageStream),
-                Folder = "nzo-website",
+                Folder = GetCloudinaryFolderPath(cloudinaryFolder),
                 UseFilename = true,
                 UniqueFilename = true,
                 Overwrite = false
@@ -406,6 +775,20 @@ public class HomeController : Controller
         {
             Api = { Secure = true }
         };
+    }
+
+    private string? GetConfiguredCloudName()
+    {
+        var cloudName = _configuration["CLOUDINARY_CLOUD_NAME"];
+        if (!string.IsNullOrWhiteSpace(cloudName))
+        {
+            return cloudName;
+        }
+
+        var cloudinaryUrl = _configuration["CLOUDINARY_URL"];
+        return Uri.TryCreate(cloudinaryUrl, UriKind.Absolute, out var uri)
+            ? uri.Host
+            : null;
     }
 
     private string GetUploadDirectory()

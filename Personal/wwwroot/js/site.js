@@ -72,6 +72,126 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  document.querySelectorAll(".top-menu__group").forEach((group) => {
+    const trigger = group.querySelector(".top-menu__item");
+    if (!trigger) {
+      return;
+    }
+
+    group.addEventListener("mouseenter", () => {
+      trigger.setAttribute("aria-expanded", "true");
+    });
+
+    group.addEventListener("mouseleave", () => {
+      trigger.setAttribute("aria-expanded", "false");
+    });
+
+    group.addEventListener("focusin", () => {
+      trigger.setAttribute("aria-expanded", "true");
+    });
+
+    group.addEventListener("focusout", (event) => {
+      if (!group.contains(event.relatedTarget)) {
+        trigger.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+
+  const adminModal = document.querySelector("[data-admin-modal]");
+  const adminModalOpenControls = document.querySelectorAll("[data-admin-modal-open]");
+  const adminModalCloseControls = document.querySelectorAll("[data-admin-modal-close]");
+  const adminPasswordForm = document.querySelector("[data-admin-password-form]");
+  const adminPasswordInput = document.querySelector("[data-admin-password-input]");
+  const adminPasswordError = document.querySelector("[data-admin-password-error]");
+
+  const closeAdminModal = () => {
+    if (!adminModal) {
+      return;
+    }
+
+    adminModal.hidden = true;
+    document.body.classList.remove("is-modal-open");
+
+    if (adminPasswordInput) {
+      adminPasswordInput.value = "";
+    }
+
+    if (adminPasswordError) {
+      adminPasswordError.hidden = true;
+    }
+  };
+
+  if (adminModal && adminModalOpenControls.length > 0) {
+    adminModalOpenControls.forEach((control) => control.addEventListener("click", () => {
+      adminModal.hidden = false;
+      document.body.classList.add("is-modal-open");
+      requestAnimationFrame(() => adminPasswordInput?.focus());
+    }));
+  }
+
+  adminModalCloseControls.forEach((control) => {
+    control.addEventListener("click", closeAdminModal);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && adminModal && !adminModal.hidden) {
+      closeAdminModal();
+    }
+  });
+
+  if (adminPasswordForm && adminPasswordInput) {
+    adminPasswordForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      if (adminPasswordInput.value === "qwerty") {
+        window.location.href = "/Home/Admin";
+        return;
+      }
+
+      if (adminPasswordError) {
+        adminPasswordError.hidden = false;
+      }
+
+      adminPasswordInput.select();
+    });
+  }
+
+  const adminShell = document.querySelector(".admin-shell");
+  const adminScrollKey = "nzo-admin-scroll-y";
+  const saveAdminScrollPosition = () => {
+    sessionStorage.setItem(adminScrollKey, String(window.scrollY));
+  };
+
+  if (adminShell) {
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+
+    const savedScrollPosition = Number(sessionStorage.getItem(adminScrollKey));
+    if (Number.isFinite(savedScrollPosition) && savedScrollPosition > 0) {
+      sessionStorage.removeItem(adminScrollKey);
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: savedScrollPosition, behavior: "auto" });
+      });
+    }
+
+    adminShell.querySelectorAll("form").forEach((form) => {
+      form.addEventListener("submit", saveAdminScrollPosition);
+    });
+
+    adminShell.querySelectorAll(".finder-sidebar__item, .finder-sidebar__subitem").forEach((link) => {
+      link.addEventListener("click", saveAdminScrollPosition);
+    });
+  }
+
+  document.querySelectorAll("form[data-confirm]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (!window.confirm(form.dataset.confirm)) {
+        event.preventDefault();
+      }
+    });
+  });
+
   const uploadInput = document.querySelector("[data-upload-input]");
   const uploadLabel = document.querySelector("[data-upload-label]");
   const uploadPreview = document.querySelector("[data-upload-preview]");

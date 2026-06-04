@@ -184,11 +184,329 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  document.querySelectorAll("form[data-confirm]").forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      if (!window.confirm(form.dataset.confirm)) {
-        event.preventDefault();
+  document.addEventListener("submit", (event) => {
+    const form = event.target.closest("form[data-confirm]");
+    if (form && !window.confirm(form.dataset.confirm)) {
+      event.preventDefault();
+    }
+  });
+
+  document.querySelectorAll("[data-series-gallery]").forEach((gallery) => {
+    const grid = gallery.querySelector("[data-series-grid]");
+    const sourceCards = [...gallery.querySelectorAll("[data-series-card]")];
+    const viewButtons = [...gallery.querySelectorAll("[data-series-view]")];
+    const previousButton = gallery.querySelector("[data-series-prev]");
+    const nextButton = gallery.querySelector("[data-series-next]");
+    const status = gallery.querySelector("[data-series-status]");
+    const pageSize = Math.max(1, Number(gallery.dataset.seriesPageSize) || 5);
+    const rowSize = Math.max(1, Math.floor(pageSize / 2));
+    const landscapeCards = sourceCards.filter((card) => card.dataset.seriesOrientation === "landscape");
+    const portraitCards = sourceCards.filter((card) => card.dataset.seriesOrientation === "portrait");
+    const otherCards = sourceCards.filter((card) => !["landscape", "portrait"].includes(card.dataset.seriesOrientation));
+    const cards = [];
+    let currentPage = 0;
+
+    for (let index = 0; index < Math.max(landscapeCards.length, portraitCards.length); index += rowSize) {
+      cards.push(...landscapeCards.slice(index, index + rowSize));
+      cards.push(...portraitCards.slice(index, index + rowSize));
+    }
+
+    cards.push(...otherCards);
+
+    if (grid) {
+      cards.forEach((card) => grid.append(card));
+    }
+
+    const renderSeriesPage = () => {
+      const totalPages = Math.max(1, Math.ceil(cards.length / pageSize));
+      currentPage = Math.min(Math.max(currentPage, 0), totalPages - 1);
+      const start = currentPage * pageSize;
+      const end = Math.min(start + pageSize, cards.length);
+
+      cards.forEach((card, index) => {
+        const isVisible = index >= start && index < end;
+        card.hidden = !isVisible;
+
+        if (isVisible) {
+          card.classList.add("active");
+        }
+      });
+
+      if (previousButton) {
+        previousButton.disabled = currentPage === 0;
       }
+
+      if (nextButton) {
+        nextButton.disabled = currentPage >= totalPages - 1;
+      }
+
+      if (status) {
+        status.textContent = cards.length === 0 ? "0 of 0" : `${start + 1}-${end} of ${cards.length}`;
+      }
+    };
+
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const view = button.dataset.seriesView;
+        if (!grid || !view) {
+          return;
+        }
+
+        grid.classList.toggle("series-grid--grid", view === "grid");
+        grid.classList.toggle("series-grid--masonry", view === "masonry");
+
+        viewButtons.forEach((viewButton) => {
+          const isActive = viewButton === button;
+          viewButton.classList.toggle("series-view-toggle__button--active", isActive);
+          viewButton.setAttribute("aria-pressed", String(isActive));
+        });
+      });
+    });
+
+    if (previousButton) {
+      previousButton.addEventListener("click", () => {
+        currentPage -= 1;
+        renderSeriesPage();
+      });
+    }
+
+    if (nextButton) {
+      nextButton.addEventListener("click", () => {
+        currentPage += 1;
+        renderSeriesPage();
+      });
+    }
+
+    renderSeriesPage();
+  });
+
+  document.querySelectorAll(".featured-series-admin").forEach((seriesAdmin) => {
+    if (seriesAdmin.matches("[data-admin-series-finder]")) {
+      return;
+    }
+
+    const cards = [...seriesAdmin.querySelectorAll(":scope > .featured-series-admin__card")];
+    if (cards.length === 0) {
+      return;
+    }
+
+    const list = document.createElement("aside");
+    list.className = "featured-series-finder__list";
+    list.setAttribute("aria-label", "Featured series");
+
+    const detail = document.createElement("div");
+    detail.className = "featured-series-finder__detail";
+
+    cards.forEach((card, index) => {
+      const seriesId = card.querySelector('input[name="seriesId"]')?.value || `series-${index}`;
+      const title = card.querySelector('input[name="title"]')?.value || `Series ${index + 1}`;
+      const eyebrow = card.querySelector('input[name="eyebrow"]')?.value || `Series ${index + 1}`;
+      const orientation = card.querySelector('select[name="orientation"]')?.value || "portrait";
+      const coverImage = card.querySelector(".featured-series-admin__cover img")?.getAttribute("src") || "";
+      const photoCount = card.querySelectorAll(".featured-series-admin__photos figure").length;
+      const isSelected = index === 0;
+      const button = document.createElement("button");
+      const image = document.createElement("img");
+      const text = document.createElement("span");
+      const strong = document.createElement("strong");
+      const small = document.createElement("small");
+
+      button.className = `featured-series-finder__item${isSelected ? " featured-series-finder__item--active" : ""}`;
+      button.type = "button";
+      button.dataset.adminSeriesTab = seriesId;
+      button.setAttribute("aria-pressed", String(isSelected));
+      image.src = coverImage;
+      image.alt = "";
+      strong.textContent = title;
+      small.textContent = `${eyebrow} · ${orientation} · ${photoCount} photo${photoCount === 1 ? "" : "s"}`;
+      text.append(strong, small);
+      button.append(image, text);
+      list.append(button);
+
+      const coverForm = card.querySelector('.featured-series-admin__tools form[action*="SetFeaturedSeriesCover"]');
+      if (coverForm) {
+        const coverPanel = document.createElement("div");
+        const coverButton = document.createElement("button");
+
+        coverPanel.className = "featured-series-admin__tool-panel";
+        coverPanel.innerHTML = "<span>Cover image</span>";
+        coverButton.type = "button";
+        coverButton.dataset.seriesCoverModalOpen = seriesId;
+        coverButton.textContent = "Choose cover";
+        coverPanel.append(coverButton);
+        coverForm.replaceWith(coverPanel);
+      }
+
+      if (!card.querySelector(".featured-series-admin__remove-series")) {
+        const tools = card.querySelector(".featured-series-admin__tools");
+        const referenceForm = card.querySelector(".featured-series-admin__edit");
+        const token = referenceForm?.querySelector('input[name="__RequestVerificationToken"]')?.cloneNode();
+        const removeSeriesForm = document.createElement("form");
+        const seriesInput = document.createElement("input");
+        const librarySourceInput = card.querySelector('input[name="librarySource"]')?.cloneNode();
+        const cloudinaryFolderInput = card.querySelector('input[name="cloudinaryFolder"]')?.cloneNode();
+        const removeButton = document.createElement("button");
+
+        removeSeriesForm.className = "featured-series-admin__remove-series";
+        removeSeriesForm.method = "post";
+        removeSeriesForm.action = "/Home/RemoveFeaturedSeries";
+        removeSeriesForm.dataset.confirm = "Remove this entire featured series?";
+        seriesInput.type = "hidden";
+        seriesInput.name = "seriesId";
+        seriesInput.value = seriesId;
+        removeButton.type = "submit";
+        removeButton.textContent = "Remove series";
+        [token, seriesInput, librarySourceInput, cloudinaryFolderInput, removeButton]
+          .filter(Boolean)
+          .forEach((node) => removeSeriesForm.append(node));
+        tools?.append(removeSeriesForm);
+      }
+
+      if (!card.querySelector("[data-series-cover-modal]")) {
+        const modal = document.createElement("div");
+        const dialog = document.createElement("section");
+        const closeButton = document.createElement("button");
+        const label = document.createElement("span");
+        const heading = document.createElement("h3");
+        const grid = document.createElement("div");
+
+        modal.className = "series-cover-modal";
+        modal.dataset.seriesCoverModal = seriesId;
+        modal.hidden = true;
+        modal.innerHTML = '<div class="series-cover-modal__backdrop" data-series-cover-modal-close></div>';
+        dialog.className = "series-cover-modal__dialog";
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        closeButton.className = "series-cover-modal__close";
+        closeButton.type = "button";
+        closeButton.setAttribute("aria-label", "Close cover picker");
+        closeButton.dataset.seriesCoverModalClose = "";
+        closeButton.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">close</span>';
+        label.className = "label";
+        label.textContent = "Cover Image";
+        heading.textContent = title;
+        grid.className = "series-cover-modal__grid";
+
+        card.querySelectorAll(".featured-series-admin__photos figure img").forEach((photo) => {
+          const photoUrl = photo.getAttribute("src");
+          const referenceForm = card.querySelector(".featured-series-admin__edit");
+          const coverToken = referenceForm?.querySelector('input[name="__RequestVerificationToken"]')?.cloneNode();
+          const removeToken = referenceForm?.querySelector('input[name="__RequestVerificationToken"]')?.cloneNode();
+          const item = document.createElement("div");
+          const coverForm = document.createElement("form");
+          const removeForm = document.createElement("form");
+          const seriesInput = document.createElement("input");
+          const imageInput = document.createElement("input");
+          const removeSeriesInput = document.createElement("input");
+          const removeImageInput = document.createElement("input");
+          const librarySourceInput = card.querySelector('input[name="librarySource"]')?.cloneNode();
+          const cloudinaryFolderInput = card.querySelector('input[name="cloudinaryFolder"]')?.cloneNode();
+          const removeLibrarySourceInput = card.querySelector('input[name="librarySource"]')?.cloneNode();
+          const removeCloudinaryFolderInput = card.querySelector('input[name="cloudinaryFolder"]')?.cloneNode();
+          const choiceButton = document.createElement("button");
+          const choiceImage = document.createElement("img");
+          const choiceLabel = document.createElement("span");
+          const removeButton = document.createElement("button");
+          const isCover = photoUrl === coverImage;
+
+          item.className = "series-cover-modal__item";
+          coverForm.method = "post";
+          coverForm.action = "/Home/SetFeaturedSeriesCover";
+          seriesInput.type = "hidden";
+          seriesInput.name = "seriesId";
+          seriesInput.value = seriesId;
+          imageInput.type = "hidden";
+          imageInput.name = "imageUrl";
+          imageInput.value = photoUrl;
+          choiceButton.className = `series-cover-modal__choice${isCover ? " series-cover-modal__choice--active" : ""}`;
+          choiceButton.type = "submit";
+          choiceImage.src = photoUrl;
+          choiceImage.alt = `${title} cover option`;
+          choiceLabel.textContent = isCover ? "Current cover" : "Set cover";
+          choiceButton.append(choiceImage, choiceLabel);
+          [coverToken, seriesInput, imageInput, librarySourceInput, cloudinaryFolderInput, choiceButton]
+            .filter(Boolean)
+            .forEach((node) => coverForm.append(node));
+          removeForm.method = "post";
+          removeForm.action = "/Home/RemoveFeaturedSeriesPhoto";
+          removeForm.dataset.confirm = "Remove this photo from the series?";
+          removeSeriesInput.type = "hidden";
+          removeSeriesInput.name = "seriesId";
+          removeSeriesInput.value = seriesId;
+          removeImageInput.type = "hidden";
+          removeImageInput.name = "imageUrl";
+          removeImageInput.value = photoUrl;
+          removeButton.className = "series-cover-modal__remove";
+          removeButton.type = "submit";
+          removeButton.textContent = "Remove photo";
+          [removeToken, removeSeriesInput, removeImageInput, removeLibrarySourceInput, removeCloudinaryFolderInput, removeButton]
+            .filter(Boolean)
+            .forEach((node) => removeForm.append(node));
+          item.append(coverForm, removeForm);
+          grid.append(item);
+        });
+
+        dialog.append(closeButton, label, heading, grid);
+        modal.append(dialog);
+        card.append(modal);
+      }
+
+      card.dataset.adminSeriesPanel = seriesId;
+      card.hidden = !isSelected;
+      detail.append(card);
+    });
+
+    seriesAdmin.classList.add("featured-series-finder");
+    seriesAdmin.dataset.adminSeriesFinder = "";
+    seriesAdmin.replaceChildren(list, detail);
+  });
+
+  document.querySelectorAll("[data-admin-series-finder]").forEach((finder) => {
+    const tabs = [...finder.querySelectorAll("[data-admin-series-tab]")];
+    const panels = [...finder.querySelectorAll("[data-admin-series-panel]")];
+
+    const showSeriesPanel = (seriesId) => {
+      tabs.forEach((tab) => {
+        const isActive = tab.dataset.adminSeriesTab === seriesId;
+        tab.classList.toggle("featured-series-finder__item--active", isActive);
+        tab.setAttribute("aria-pressed", String(isActive));
+      });
+
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.adminSeriesPanel !== seriesId;
+      });
+    };
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        showSeriesPanel(tab.dataset.adminSeriesTab);
+      });
+    });
+
+    const activeTab = tabs.find((tab) => tab.classList.contains("featured-series-finder__item--active")) ?? tabs[0];
+    if (activeTab) {
+      showSeriesPanel(activeTab.dataset.adminSeriesTab);
+    }
+  });
+
+  document.querySelectorAll("[data-series-cover-modal-open]").forEach((control) => {
+    const modal = document.querySelector(`[data-series-cover-modal="${control.dataset.seriesCoverModalOpen}"]`);
+    if (!modal) {
+      return;
+    }
+
+    control.addEventListener("click", () => {
+      modal.hidden = false;
+      document.body.classList.add("is-modal-open");
+    });
+  });
+
+  document.querySelectorAll("[data-series-cover-modal]").forEach((modal) => {
+    modal.querySelectorAll("[data-series-cover-modal-close]").forEach((control) => {
+      control.addEventListener("click", () => {
+        modal.hidden = true;
+        document.body.classList.remove("is-modal-open");
+      });
     });
   });
 

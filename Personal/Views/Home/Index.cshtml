@@ -5,6 +5,11 @@
     var landingImages = Model.LandingCarouselImages.Count > 0
         ? Model.LandingCarouselImages
         : new[] { "/images/lumina/hero.jpg" };
+    var seriesPageSize = 6;
+    var initialSeriesEnd = Math.Min(seriesPageSize, Model.FeaturedSeries.Count);
+    var initialSeriesStatus = Model.FeaturedSeries.Count == 0
+        ? "0 of 0"
+        : $"1-{initialSeriesEnd} of {Model.FeaturedSeries.Count}";
 }
 
 <section class="hero" id="home">
@@ -23,63 +28,74 @@
 </section>
 
 <section class="featured-section" id="gallery">
-    <div class="lumina-container">
+    <div class="lumina-container" data-series-gallery data-series-page-size="@seriesPageSize">
         <div class="section-head reveal">
             <div>
                 <h2>Featured Series</h2>
                 <p>Curated collections exploring the intersection of structure, nature, and humanity.</p>
             </div>
-            <a class="soft-button" href="#journal">
-                View All Works
-                <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-            </a>
+            <div class="series-toolbar" aria-label="Featured series controls">
+                <div class="series-view-toggle" role="group" aria-label="Change series view">
+                    <button class="series-view-toggle__button series-view-toggle__button--active" type="button" data-series-view="grid" aria-pressed="true">
+                        <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+                        <span>Grid</span>
+                    </button>
+                    <button class="series-view-toggle__button" type="button" data-series-view="masonry" aria-pressed="false">
+                        <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+                        <span>Masonry</span>
+                    </button>
+                </div>
+                <a class="soft-button" href="#journal">
+                    View All Works
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                </a>
+            </div>
         </div>
 
-        <div class="series-grid">
-            <article class="series-card reveal tilt-card">
-                <div class="image-window">
-                    <div class="window-bar">
-                        <span class="traffic traffic--red"></span>
-                        <span class="traffic traffic--yellow"></span>
-                        <span class="traffic traffic--green"></span>
-                        <span class="window-title">Structure_01.jpg</span>
+        <div class="series-grid series-grid--grid" data-series-grid>
+            @for (var index = 0; index < Model.FeaturedSeries.Count; index++)
+            {
+                var series = Model.FeaturedSeries[index];
+                var isHidden = index >= seriesPageSize;
+                var plainWindow = index == 0 ? string.Empty : " image-window--plain";
+                <article class="series-card reveal tilt-card"
+                         data-series-card
+                         data-series-index="@index"
+                         data-series-orientation="@series.Orientation"
+                         hidden="@isHidden">
+                    <div class="image-window@plainWindow">
+                        @if (index == 0)
+                        {
+                            <div class="window-bar">
+                                <span class="traffic traffic--red"></span>
+                                <span class="traffic traffic--yellow"></span>
+                                <span class="traffic traffic--green"></span>
+                                <span class="window-title">Series_01.jpg</span>
+                            </div>
+                        }
+                        <div class="image-window__frame image-window__frame--@series.Orientation">
+                            <img src="@series.ImageUrl" alt="@series.ImageAlt">
+                        </div>
                     </div>
-                    <div class="image-window__frame">
-                        <img src="~/images/lumina/architecture.jpg" alt="Glass architecture photographed from below">
+                    <div class="series-card__copy">
+                        <span>@series.Eyebrow</span>
+                        <h3>@series.Title</h3>
+                        <p>@series.Description</p>
                     </div>
-                </div>
-                <div class="series-card__copy">
-                    <span>Series 01</span>
-                    <h3>Architecture</h3>
-                    <p>Exploring the mathematical beauty of the modern urban landscape.</p>
-                </div>
-            </article>
+                </article>
+            }
+        </div>
 
-            <article class="series-card reveal tilt-card">
-                <div class="image-window image-window--plain">
-                    <div class="image-window__frame">
-                        <img src="~/images/lumina/nature.jpg" alt="Forest path with sunlight cutting through trees">
-                    </div>
-                </div>
-                <div class="series-card__copy">
-                    <span>Series 02</span>
-                    <h3>Nature</h3>
-                    <p>Unveiling the quiet drama found within the world's untamed spaces.</p>
-                </div>
-            </article>
-
-            <article class="series-card reveal tilt-card">
-                <div class="image-window image-window--plain">
-                    <div class="image-window__frame">
-                        <img src="~/images/lumina/portraiture.jpg" alt="Editorial portrait of a woman in a black turtleneck">
-                    </div>
-                </div>
-                <div class="series-card__copy">
-                    <span>Series 03</span>
-                    <h3>Portraiture</h3>
-                    <p>Documenting the human condition through honest, light-filled moments.</p>
-                </div>
-            </article>
+        <div class="series-pager" data-series-pager>
+            <button class="series-pager__button" type="button" data-series-prev disabled>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+                <span>Previous</span>
+            </button>
+            <span class="series-pager__status" data-series-status aria-live="polite">@initialSeriesStatus</span>
+            <button class="series-pager__button" type="button" data-series-next>
+                <span>Next</span>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
         </div>
     </div>
 </section>

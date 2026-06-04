@@ -19,5 +19,93 @@
       "DisplayName": "NZO09600.jpg",
       "CreatedAt": "2026-05-31T14:18:34.812363+00:00"
     }
+  ],
+  "FeaturedSeries": [
+    {
+      "Id": "nature",
+      "Eyebrow": "Series 01",
+      "Title": "Nature",
+      "Description": "Unveiling the quiet drama found within the world\u0027s untamed spaces.",
+      "Orientation": "landscape",
+      "CoverImageUrl": "/images/lumina/nature.jpg",
+      "PhotoUrls": [
+        "/images/lumina/nature.jpg"
+      ]
+    },
+    {
+      "Id": "celebrations",
+      "Eyebrow": "Series 02",
+      "Title": "Celebrations",
+      "Description": "Soft, luminous coverage for intimate milestones and ceremony details.",
+      "Orientation": "landscape",
+      "CoverImageUrl": "/uploads/admin/20260530105406-c140f6906f04444e9e77bc59b9d7039e.jpg",
+      "PhotoUrls": [
+        "/uploads/admin/20260530105406-c140f6906f04444e9e77bc59b9d7039e.jpg"
+      ]
+    },
+    {
+      "Id": "studio-notes",
+      "Eyebrow": "Series 03",
+      "Title": "Studio Notes",
+      "Description": "Controlled compositions for campaigns, keepsakes, and visual archives.",
+      "Orientation": "landscape",
+      "CoverImageUrl": "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg",
+      "PhotoUrls": [
+        "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg"
+      ]
+    },
+    {
+      "Id": "architecture",
+      "Eyebrow": "Series 04",
+      "Title": "Architecture",
+      "Description": "Exploring the mathematical beauty of the modern urban landscape.",
+      "Orientation": "portrait",
+      "CoverImageUrl": "",
+      "PhotoUrls": []
+    },
+    {
+      "Id": "portraiture",
+      "Eyebrow": "Series 05",
+      "Title": "Portraiture",
+      "Description": "Documenting the human condition through honest, light-filled moments.",
+      "Orientation": "portrait",
+      "CoverImageUrl": "/images/lumina/portraiture.jpg",
+      "PhotoUrls": [
+        "/images/lumina/portraiture.jpg"
+      ]
+    },
+    {
+      "Id": "editorial-light",
+      "Eyebrow": "Series 06",
+      "Title": "Editorial Light",
+      "Description": "Portrait sessions shaped around movement, texture, and natural direction.",
+      "Orientation": "portrait",
+      "CoverImageUrl": "/uploads/20260529155029-7b52b42126a34a7284fdcd1700eaf1d3.jpeg",
+      "PhotoUrls": [
+        "/uploads/20260529155029-7b52b42126a34a7284fdcd1700eaf1d3.jpeg"
+      ]
+    },
+    {
+      "Id": "archive",
+      "Eyebrow": "Series 07",
+      "Title": "Archive",
+      "Description": "Selected work-in-progress images from the evolving NZO visual library.",
+      "Orientation": "landscape",
+      "CoverImageUrl": "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg",
+      "PhotoUrls": [
+        "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg"
+      ]
+    },
+    {
+      "Id": "golden-hour",
+      "Eyebrow": "Series 08",
+      "Title": "Golden Hour",
+      "Description": "Warm outdoor frames built around color, atmosphere, and honest expressions.",
+      "Orientation": "portrait",
+      "CoverImageUrl": "/uploads/admin/20260530105406-197e8079fc8f41d79e86b4ec155d16ec.jpg",
+      "PhotoUrls": [
+        "/uploads/admin/20260530105406-197e8079fc8f41d79e86b4ec155d16ec.jpg"
+      ]
+    }
   ]
 }

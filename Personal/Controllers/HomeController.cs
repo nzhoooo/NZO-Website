@@ -20,6 +20,17 @@ public class HomeController : Controller
         "/images/lumina/nature.jpg",
         "/images/lumina/portraiture.jpg"
     ];
+    private static readonly FeaturedSeriesRecord[] DefaultFeaturedSeries =
+    [
+        CreateDefaultSeries("nature", "Series 01", "Nature", "Unveiling the quiet drama found within the world's untamed spaces.", "/images/lumina/nature.jpg", "landscape"),
+        CreateDefaultSeries("celebrations", "Series 02", "Celebrations", "Soft, luminous coverage for intimate milestones and ceremony details.", "/uploads/admin/20260530105406-c140f6906f04444e9e77bc59b9d7039e.jpg", "landscape"),
+        CreateDefaultSeries("studio-notes", "Series 03", "Studio Notes", "Controlled compositions for campaigns, keepsakes, and visual archives.", "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg", "landscape"),
+        CreateDefaultSeries("architecture", "Series 04", "Architecture", "Exploring the mathematical beauty of the modern urban landscape.", "/images/lumina/architecture.jpg", "portrait"),
+        CreateDefaultSeries("portraiture", "Series 05", "Portraiture", "Documenting the human condition through honest, light-filled moments.", "/images/lumina/portraiture.jpg", "portrait"),
+        CreateDefaultSeries("editorial-light", "Series 06", "Editorial Light", "Portrait sessions shaped around movement, texture, and natural direction.", "/uploads/20260529155029-7b52b42126a34a7284fdcd1700eaf1d3.jpeg", "portrait"),
+        CreateDefaultSeries("archive", "Series 07", "Archive", "Selected work-in-progress images from the evolving NZO visual library.", "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg", "landscape"),
+        CreateDefaultSeries("golden-hour", "Series 08", "Golden Hour", "Warm outdoor frames built around color, atmosphere, and honest expressions.", "/uploads/admin/20260530105406-197e8079fc8f41d79e86b4ec155d16ec.jpg", "portrait")
+    ];
     private static readonly Dictionary<string, string> FallbackImageNames = new(StringComparer.Ordinal)
     {
         ["/images/lumina/hero.jpg"] = "Default hero",
@@ -42,7 +53,8 @@ public class HomeController : Controller
     {
         return View(new HomeViewModel
         {
-            LandingCarouselImages = GetLandingCarouselImages()
+            LandingCarouselImages = GetLandingCarouselImages(),
+            FeaturedSeries = GetFeaturedSeries(GetSettings())
         });
     }
 
@@ -59,6 +71,306 @@ public class HomeController : Controller
     public IActionResult Admin(string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
     {
         return View(CreateAdminViewModel(librarySource, cloudinaryFolder));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult CreateFeaturedSeries(
+        string title,
+        string description,
+        string orientation = "portrait",
+        string coverImageUrl = "",
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            TempData["AdminMessage"] = "Enter a series title.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        var settings = GetSettings();
+        EnsureFeaturedSeries(settings);
+        var normalizedOrientation = NormalizeSeriesOrientation(orientation);
+        var normalizedCover = IsKnownSeriesImageUrl(coverImageUrl) ? coverImageUrl : string.Empty;
+        var nextSeriesNumber = settings.FeaturedSeries.Count + 1;
+        var record = new FeaturedSeriesRecord
+        {
+            Id = CreateSeriesId(title),
+            Eyebrow = $"Series {nextSeriesNumber:00}",
+            Title = title.Trim(),
+            Description = description?.Trim() ?? string.Empty,
+            Orientation = normalizedOrientation,
+            CoverImageUrl = normalizedCover,
+            PhotoUrls = string.IsNullOrWhiteSpace(normalizedCover) ? [] : [normalizedCover]
+        };
+
+        settings.FeaturedSeries.Add(record);
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Featured series added.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateFeaturedSeries(
+        string seriesId,
+        string eyebrow,
+        string title,
+        string description,
+        string orientation,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        var settings = GetSettings();
+        var series = FindFeaturedSeries(settings, seriesId);
+        if (series is null || string.IsNullOrWhiteSpace(title))
+        {
+            TempData["AdminMessage"] = "Choose a valid series to edit.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        series.Eyebrow = string.IsNullOrWhiteSpace(eyebrow) ? series.Eyebrow : eyebrow.Trim();
+        series.Title = title.Trim();
+        series.Description = description?.Trim() ?? string.Empty;
+        series.Orientation = NormalizeSeriesOrientation(orientation);
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Featured series updated.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult AddFeaturedSeriesPhoto(
+        string seriesId,
+        string imageUrl,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        if (!IsKnownSeriesImageUrl(imageUrl))
+        {
+            TempData["AdminMessage"] = "Choose a valid image for the series.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        var settings = GetSettings();
+        var series = FindFeaturedSeries(settings, seriesId);
+        if (series is null)
+        {
+            TempData["AdminMessage"] = "Choose a valid series.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        if (!series.PhotoUrls.Contains(imageUrl, StringComparer.Ordinal))
+        {
+            series.PhotoUrls.Add(imageUrl);
+        }
+
+        if (string.IsNullOrWhiteSpace(series.CoverImageUrl))
+        {
+            series.CoverImageUrl = imageUrl;
+        }
+
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Photo added to series.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UploadFeaturedSeriesPhotos(
+        string seriesId,
+        List<IFormFile> images,
+        bool setFirstAsCover,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        var settings = GetSettings();
+        var series = FindFeaturedSeries(settings, seriesId);
+        if (series is null)
+        {
+            TempData["AdminMessage"] = "Choose a valid series.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        if (librarySource == CloudinaryLibrarySource && CreateCloudinaryClient() is null)
+        {
+            TempData["AdminMessage"] = "Cloudinary is not configured yet.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        var imagesToUpload = images.Where(image => image.Length > 0).ToList();
+        if (imagesToUpload.Count == 0)
+        {
+            TempData["AdminMessage"] = "Choose at least one series image.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        foreach (var image in imagesToUpload)
+        {
+            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+            if (!AllowedImageExtensions.Contains(extension))
+            {
+                TempData["AdminMessage"] = "Only JPG, PNG, WEBP, and GIF images can be uploaded.";
+                return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+            }
+        }
+
+        var uploadedImages = new List<UploadedImageRecord>();
+        foreach (var image in imagesToUpload)
+        {
+            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
+            uploadedImages.Add(await UploadImage(image, extension, librarySource, cloudinaryFolder));
+        }
+
+        settings.UploadedImages.InsertRange(0, uploadedImages);
+        foreach (var uploadedImage in uploadedImages)
+        {
+            if (!series.PhotoUrls.Contains(uploadedImage.Url, StringComparer.Ordinal))
+            {
+                series.PhotoUrls.Add(uploadedImage.Url);
+            }
+        }
+
+        if (setFirstAsCover || string.IsNullOrWhiteSpace(series.CoverImageUrl))
+        {
+            series.CoverImageUrl = uploadedImages[0].Url;
+        }
+
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Series photos uploaded.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetFeaturedSeriesCover(
+        string seriesId,
+        string imageUrl,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        var settings = GetSettings();
+        var series = FindFeaturedSeries(settings, seriesId);
+        if (series is null || !IsKnownSeriesImageUrl(imageUrl))
+        {
+            TempData["AdminMessage"] = "Choose a valid series cover.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        if (!series.PhotoUrls.Contains(imageUrl, StringComparer.Ordinal))
+        {
+            series.PhotoUrls.Add(imageUrl);
+        }
+
+        series.CoverImageUrl = imageUrl;
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Series cover updated.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RemoveFeaturedSeriesPhoto(
+        string seriesId,
+        string imageUrl,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        var settings = GetSettings();
+        var series = FindFeaturedSeries(settings, seriesId);
+        if (series is null)
+        {
+            TempData["AdminMessage"] = "Choose a valid series.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        series.PhotoUrls.RemoveAll(photoUrl => photoUrl == imageUrl);
+        if (series.CoverImageUrl == imageUrl)
+        {
+            series.CoverImageUrl = series.PhotoUrls.FirstOrDefault() ?? string.Empty;
+        }
+
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Series photo removed.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RemoveFeaturedSeries(
+        string seriesId,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
+    {
+        librarySource = NormalizeLibrarySource(librarySource);
+        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
+        if (librarySource == LocalLibrarySource)
+        {
+            cloudinaryFolder = string.Empty;
+        }
+
+        var settings = GetSettings();
+        EnsureFeaturedSeries(settings);
+        var removedCount = settings.FeaturedSeries.RemoveAll(series => series.Id == seriesId);
+        if (removedCount == 0)
+        {
+            TempData["AdminMessage"] = "Choose a valid series to remove.";
+            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
+        }
+
+        SaveSettings(settings);
+        TempData["AdminMessage"] = "Featured series removed.";
+
+        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
 
     [HttpPost]
@@ -290,6 +602,8 @@ public class HomeController : Controller
             CurrentLandingBackground = settings.LandingBackground,
             LandingCarouselImages = GetLandingCarouselImages(settings, includeCloudinaryLibrary: true),
             CarouselImageOptions = GetCarouselImageOptions(settings, includeCloudinaryLibrary: true),
+            FeaturedSeries = GetAdminFeaturedSeries(settings),
+            SeriesImageOptions = GetSeriesImageOptions(settings, includeCloudinaryLibrary: true),
             UploadedImages = uploadedImages
                 .Where(image => image.Source == normalizedLibrarySource)
                 .ToList(),
@@ -297,6 +611,61 @@ public class HomeController : Controller
             CurrentCloudinaryFolder = normalizedCloudinaryFolder,
             CloudinaryFolders = GetCloudinaryFolders()
         };
+    }
+
+    private IReadOnlyList<FeaturedSeriesItem> GetFeaturedSeries(SiteSettings settings)
+    {
+        EnsureFeaturedSeries(settings);
+
+        return settings.FeaturedSeries
+            .Where(series => !string.IsNullOrWhiteSpace(series.Title))
+            .Select(series =>
+            {
+                var coverImageUrl = GetSeriesCoverImageUrl(series);
+                return new FeaturedSeriesItem(
+                    series.Eyebrow,
+                    series.Title,
+                    series.Description,
+                    coverImageUrl,
+                    $"{series.Title} series cover",
+                    NormalizeSeriesOrientation(series.Orientation));
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminFeaturedSeriesViewModel> GetAdminFeaturedSeries(SiteSettings settings)
+    {
+        EnsureFeaturedSeries(settings);
+
+        return settings.FeaturedSeries
+            .Select(series => new AdminFeaturedSeriesViewModel
+            {
+                Id = series.Id,
+                Eyebrow = series.Eyebrow,
+                Title = series.Title,
+                Description = series.Description,
+                Orientation = NormalizeSeriesOrientation(series.Orientation),
+                CoverImageUrl = GetSeriesCoverImageUrl(series),
+                PhotoUrls = series.PhotoUrls
+                    .Where(photoUrl => !string.IsNullOrWhiteSpace(photoUrl))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList()
+            })
+            .ToList();
+    }
+
+    private IReadOnlyList<CarouselImageOption> GetSeriesImageOptions(SiteSettings settings, bool includeCloudinaryLibrary = false)
+    {
+        return GetCarouselImageOptions(settings, includeCloudinaryLibrary)
+            .Concat(DefaultFeaturedSeries.Select(series => new CarouselImageOption
+            {
+                Url = GetSeriesCoverImageUrl(series),
+                DisplayName = series.Title
+            }))
+            .Where(option => !string.IsNullOrWhiteSpace(option.Url))
+            .GroupBy(option => option.Url, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToList();
     }
 
     private IReadOnlyList<string> GetLandingCarouselImages()
@@ -571,6 +940,111 @@ public class HomeController : Controller
                 settings.LandingCarouselImages[index] = string.Empty;
             }
         }
+
+        foreach (var series in settings.FeaturedSeries)
+        {
+            series.PhotoUrls.RemoveAll(photoUrl => photoUrl == imageUrl);
+            if (series.CoverImageUrl == imageUrl)
+            {
+                series.CoverImageUrl = series.PhotoUrls.FirstOrDefault() ?? string.Empty;
+            }
+        }
+    }
+
+    private static FeaturedSeriesRecord CreateDefaultSeries(
+        string id,
+        string eyebrow,
+        string title,
+        string description,
+        string coverImageUrl,
+        string orientation)
+    {
+        return new FeaturedSeriesRecord
+        {
+            Id = id,
+            Eyebrow = eyebrow,
+            Title = title,
+            Description = description,
+            Orientation = NormalizeSeriesOrientation(orientation),
+            CoverImageUrl = coverImageUrl,
+            PhotoUrls = [coverImageUrl]
+        };
+    }
+
+    private static void EnsureFeaturedSeries(SiteSettings settings)
+    {
+        if (settings.FeaturedSeries.Count == 0)
+        {
+            settings.FeaturedSeries = DefaultFeaturedSeries
+                .Select(CloneFeaturedSeries)
+                .ToList();
+            return;
+        }
+
+        foreach (var series in settings.FeaturedSeries)
+        {
+            if (string.IsNullOrWhiteSpace(series.Id))
+            {
+                series.Id = CreateSeriesId(series.Title);
+            }
+
+            series.Orientation = NormalizeSeriesOrientation(series.Orientation);
+            series.PhotoUrls = series.PhotoUrls
+                .Where(photoUrl => !string.IsNullOrWhiteSpace(photoUrl))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(series.CoverImageUrl) &&
+                !series.PhotoUrls.Contains(series.CoverImageUrl, StringComparer.Ordinal))
+            {
+                series.PhotoUrls.Insert(0, series.CoverImageUrl);
+            }
+        }
+    }
+
+    private static FeaturedSeriesRecord CloneFeaturedSeries(FeaturedSeriesRecord series)
+    {
+        return new FeaturedSeriesRecord
+        {
+            Id = series.Id,
+            Eyebrow = series.Eyebrow,
+            Title = series.Title,
+            Description = series.Description,
+            Orientation = NormalizeSeriesOrientation(series.Orientation),
+            CoverImageUrl = series.CoverImageUrl,
+            PhotoUrls = series.PhotoUrls.ToList()
+        };
+    }
+
+    private static FeaturedSeriesRecord? FindFeaturedSeries(SiteSettings settings, string seriesId)
+    {
+        EnsureFeaturedSeries(settings);
+        return settings.FeaturedSeries.FirstOrDefault(series => series.Id == seriesId);
+    }
+
+    private static string NormalizeSeriesOrientation(string? orientation)
+    {
+        return string.Equals(orientation, "landscape", StringComparison.OrdinalIgnoreCase)
+            ? "landscape"
+            : "portrait";
+    }
+
+    private static string GetSeriesCoverImageUrl(FeaturedSeriesRecord series)
+    {
+        if (!string.IsNullOrWhiteSpace(series.CoverImageUrl))
+        {
+            return series.CoverImageUrl;
+        }
+
+        return series.PhotoUrls.FirstOrDefault(photoUrl => !string.IsNullOrWhiteSpace(photoUrl)) ?? FallbackLandingCarouselImages[0];
+    }
+
+    private static string CreateSeriesId(string title)
+    {
+        var slug = NormalizeCloudinaryFolder(title);
+        return string.IsNullOrWhiteSpace(slug)
+            ? Guid.NewGuid().ToString("N")
+            : $"{slug}-{Guid.NewGuid():N}"[..Math.Min(slug.Length + 9, 40)];
     }
 
     private bool RemoveCloudinaryImage(string publicId)
@@ -683,6 +1157,23 @@ public class HomeController : Controller
         var filePath = Path.Combine(GetUploadDirectory(), fileName);
 
         return System.IO.File.Exists(filePath);
+    }
+
+    private bool IsKnownSeriesImageUrl(string imageUrl)
+    {
+        if (FallbackLandingCarouselImages.Contains(imageUrl, StringComparer.Ordinal) ||
+            DefaultFeaturedSeries.Any(series => series.CoverImageUrl == imageUrl || series.PhotoUrls.Contains(imageUrl, StringComparer.Ordinal)))
+        {
+            return true;
+        }
+
+        if (imageUrl.StartsWith("/uploads/", StringComparison.Ordinal) && !imageUrl.StartsWith("/uploads/admin/", StringComparison.Ordinal))
+        {
+            var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            return System.IO.File.Exists(Path.Combine(_environment.WebRootPath, relativePath));
+        }
+
+        return IsKnownImageUrl(imageUrl);
     }
 
     private bool IsCloudinaryDeliveryUrl(Uri uri)

@@ -10,6 +10,10 @@ public sealed class AdminViewModel
 
     public IReadOnlyList<UploadedImageViewModel> UploadedImages { get; init; } = [];
 
+    public IReadOnlyList<AdminFeaturedSeriesViewModel> FeaturedSeries { get; init; } = [];
+
+    public IReadOnlyList<CarouselImageOption> SeriesImageOptions { get; init; } = [];
+
     public string CurrentLibrarySource { get; init; } = "local";
 
     public string CurrentCloudinaryFolder { get; init; } = string.Empty;
@@ -48,6 +52,8 @@ public sealed class SiteSettings
     public List<string> LandingCarouselImages { get; set; } = [];
 
     public List<UploadedImageRecord> UploadedImages { get; set; } = [];
+
+    public List<FeaturedSeriesRecord> FeaturedSeries { get; set; } = [];
 }
 
 public sealed class CarouselImageOption
@@ -66,4 +72,38 @@ public sealed class UploadedImageRecord
     public string DisplayName { get; set; } = string.Empty;
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class AdminFeaturedSeriesViewModel
+{
+    public required string Id { get; init; }
+
+    public required string Eyebrow { get; init; }
+
+    public required string Title { get; init; }
+
+    public required string Description { get; init; }
+
+    public required string Orientation { get; init; }
+
+    public required string CoverImageUrl { get; init; }
+
+    public IReadOnlyList<string> PhotoUrls { get; init; } = [];
+}
+
+public sealed class FeaturedSeriesRecord
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Eyebrow { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+
+    public string Orientation { get; set; } = "portrait";
+
+    public string CoverImageUrl { get; set; } = string.Empty;
+
+    public List<string> PhotoUrls { get; set; } = [];
 }

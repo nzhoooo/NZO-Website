@@ -92,6 +92,11 @@ public class HomeController : Controller
 
         if (string.IsNullOrWhiteSpace(title))
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Enter a series title." });
+            }
+
             TempData["AdminMessage"] = "Enter a series title.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -114,7 +119,13 @@ public class HomeController : Controller
 
         settings.FeaturedSeries.Add(record);
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Featured series added.";
+        var message = "Featured series added.";
+        if (IsFetchRequest())
+        {
+            return SeriesJson(record, message);
+        }
+
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -141,6 +152,11 @@ public class HomeController : Controller
         var series = FindFeaturedSeries(settings, seriesId);
         if (series is null || string.IsNullOrWhiteSpace(title))
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose a valid series to edit." });
+            }
+
             TempData["AdminMessage"] = "Choose a valid series to edit.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -150,7 +166,13 @@ public class HomeController : Controller
         series.Description = description?.Trim() ?? string.Empty;
         series.Orientation = NormalizeSeriesOrientation(orientation);
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Featured series updated.";
+        var message = "Featured series updated.";
+        if (IsFetchRequest())
+        {
+            return SeriesJson(series, message);
+        }
+
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -178,6 +200,11 @@ public class HomeController : Controller
 
         if (validImageUrls.Count == 0)
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose at least one valid image for the series." });
+            }
+
             TempData["AdminMessage"] = "Choose at least one valid image for the series.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -186,6 +213,11 @@ public class HomeController : Controller
         var series = FindFeaturedSeries(settings, seriesId);
         if (series is null)
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose a valid series." });
+            }
+
             TempData["AdminMessage"] = "Choose a valid series.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -204,81 +236,13 @@ public class HomeController : Controller
         }
 
         SaveSettings(settings);
-        TempData["AdminMessage"] = validImageUrls.Count == 1 ? "Photo added to series." : "Photos added to series.";
-
-        return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UploadFeaturedSeriesPhotos(
-        string seriesId,
-        List<IFormFile> images,
-        bool setFirstAsCover,
-        string librarySource = LocalLibrarySource,
-        string cloudinaryFolder = "")
-    {
-        librarySource = NormalizeLibrarySource(librarySource);
-        cloudinaryFolder = NormalizeCloudinaryFolder(cloudinaryFolder);
-        if (librarySource == LocalLibrarySource)
+        var message = validImageUrls.Count == 1 ? "Photo added to series." : "Photos added to series.";
+        if (IsFetchRequest())
         {
-            cloudinaryFolder = string.Empty;
+            return SeriesJson(series, message);
         }
 
-        var settings = GetSettings();
-        var series = FindFeaturedSeries(settings, seriesId);
-        if (series is null)
-        {
-            TempData["AdminMessage"] = "Choose a valid series.";
-            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
-        }
-
-        if (librarySource == CloudinaryLibrarySource && CreateCloudinaryClient() is null)
-        {
-            TempData["AdminMessage"] = "Cloudinary is not configured yet.";
-            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
-        }
-
-        var imagesToUpload = images.Where(image => image.Length > 0).ToList();
-        if (imagesToUpload.Count == 0)
-        {
-            TempData["AdminMessage"] = "Choose at least one series image.";
-            return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
-        }
-
-        foreach (var image in imagesToUpload)
-        {
-            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-            if (!AllowedImageExtensions.Contains(extension))
-            {
-                TempData["AdminMessage"] = "Only JPG, PNG, WEBP, and GIF images can be uploaded.";
-                return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
-            }
-        }
-
-        var uploadedImages = new List<UploadedImageRecord>();
-        foreach (var image in imagesToUpload)
-        {
-            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-            uploadedImages.Add(await UploadImage(image, extension, librarySource, cloudinaryFolder));
-        }
-
-        settings.UploadedImages.InsertRange(0, uploadedImages);
-        foreach (var uploadedImage in uploadedImages)
-        {
-            if (!series.PhotoUrls.Contains(uploadedImage.Url, StringComparer.Ordinal))
-            {
-                series.PhotoUrls.Add(uploadedImage.Url);
-            }
-        }
-
-        if (setFirstAsCover || string.IsNullOrWhiteSpace(series.CoverImageUrl))
-        {
-            series.CoverImageUrl = uploadedImages[0].Url;
-        }
-
-        SaveSettings(settings);
-        TempData["AdminMessage"] = "Series photos uploaded.";
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -302,6 +266,11 @@ public class HomeController : Controller
         var series = FindFeaturedSeries(settings, seriesId);
         if (series is null || !IsKnownSeriesImageUrl(imageUrl))
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose a valid series cover." });
+            }
+
             TempData["AdminMessage"] = "Choose a valid series cover.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -313,7 +282,13 @@ public class HomeController : Controller
 
         series.CoverImageUrl = imageUrl;
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Series cover updated.";
+        var message = "Series cover updated.";
+        if (IsFetchRequest())
+        {
+            return SeriesJson(series, message);
+        }
+
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -337,6 +312,11 @@ public class HomeController : Controller
         var series = FindFeaturedSeries(settings, seriesId);
         if (series is null)
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose a valid series." });
+            }
+
             TempData["AdminMessage"] = "Choose a valid series.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
@@ -348,7 +328,13 @@ public class HomeController : Controller
         }
 
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Series photo removed.";
+        var message = "Series photo removed.";
+        if (IsFetchRequest())
+        {
+            return SeriesJson(series, message);
+        }
+
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -372,12 +358,23 @@ public class HomeController : Controller
         var removedCount = settings.FeaturedSeries.RemoveAll(series => series.Id == seriesId);
         if (removedCount == 0)
         {
+            if (IsFetchRequest())
+            {
+                return BadRequest(new { message = "Choose a valid series to remove." });
+            }
+
             TempData["AdminMessage"] = "Choose a valid series to remove.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Featured series removed.";
+        var message = "Featured series removed.";
+        if (IsFetchRequest())
+        {
+            return Json(new { message, removedSeriesId = seriesId });
+        }
+
+        TempData["AdminMessage"] = message;
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }
@@ -661,6 +658,35 @@ public class HomeController : Controller
                     .ToList()
             })
             .ToList();
+    }
+
+    private IActionResult SeriesJson(FeaturedSeriesRecord series, string message)
+    {
+        series.Orientation = NormalizeSeriesOrientation(series.Orientation);
+        series.PhotoUrls = series.PhotoUrls
+            .Where(photoUrl => !string.IsNullOrWhiteSpace(photoUrl))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return Json(new
+        {
+            message,
+            series = new
+            {
+                series.Id,
+                series.Eyebrow,
+                series.Title,
+                series.Description,
+                Orientation = series.Orientation,
+                CoverImageUrl = GetSeriesCoverImageUrl(series),
+                PhotoUrls = series.PhotoUrls
+            }
+        });
+    }
+
+    private bool IsFetchRequest()
+    {
+        return string.Equals(Request.Headers["X-Requested-With"].ToString(), "fetch", StringComparison.OrdinalIgnoreCase);
     }
 
     private IReadOnlyList<CarouselImageOption> GetSeriesImageOptions(SiteSettings settings, bool includeCloudinaryLibrary = false)

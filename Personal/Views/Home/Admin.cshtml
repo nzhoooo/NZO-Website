@@ -342,25 +342,10 @@
                                                 </div>
                                                 <button class="series-photos-modal__add-selected" type="submit" hidden>Add selected photos</button>
                                             </form>
-
-                                            <form asp-action="UploadFeaturedSeriesPhotos" asp-controller="Home" method="post" enctype="multipart/form-data">
-                                                <input type="hidden" name="seriesId" value="@series.Id">
-                                                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                                <label>
-                                                    <span>Upload photos</span>
-                                                    <input name="images" type="file" accept="image/*" multiple required>
-                                                </label>
-                                                <label class="admin-check">
-                                                    <input type="checkbox" name="setFirstAsCover" value="true">
-                                                    Set first as cover
-                                                </label>
-                                                <button type="submit">Upload to series</button>
-                                            </form>
                                         </div>
                                         @if (series.PhotoUrls.Count == 0)
                                         {
-                                            <p>No photos in this series yet.</p>
+                                            <p data-series-photos-empty>No photos in this series yet.</p>
                                         }
                                         else
                                         {

@@ -274,36 +274,10 @@
                                         <button type="button" data-series-cover-modal-open="@series.Id">Choose cover</button>
                                     </div>
 
-                                    <form asp-action="AddFeaturedSeriesPhoto" asp-controller="Home" method="post">
-                                        <input type="hidden" name="seriesId" value="@series.Id">
-                                        <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                        <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                        <label>
-                                            <span>Add existing photo</span>
-                                            <select name="imageUrl">
-                                                @foreach (var option in Model.SeriesImageOptions)
-                                                {
-                                                    <option value="@option.Url">@option.DisplayName</option>
-                                                }
-                                            </select>
-                                        </label>
-                                        <button type="submit">Add photo</button>
-                                    </form>
-
-                                    <form asp-action="UploadFeaturedSeriesPhotos" asp-controller="Home" method="post" enctype="multipart/form-data">
-                                        <input type="hidden" name="seriesId" value="@series.Id">
-                                        <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                        <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                        <label>
-                                            <span>Upload photos</span>
-                                            <input name="images" type="file" accept="image/*" multiple required>
-                                        </label>
-                                        <label class="admin-check">
-                                            <input type="checkbox" name="setFirstAsCover" value="true">
-                                            Set first as cover
-                                        </label>
-                                        <button type="submit">Upload to series</button>
-                                    </form>
+                                    <div class="featured-series-admin__tool-panel">
+                                        <span>Photos</span>
+                                        <button type="button" data-series-photos-modal-open="@series.Id">Manage photos</button>
+                                    </div>
 
                                     <form class="featured-series-admin__remove-series" asp-action="RemoveFeaturedSeries" asp-controller="Home" method="post" data-confirm="Remove this entire featured series?">
                                         <input type="hidden" name="seriesId" value="@series.Id">
@@ -334,16 +308,85 @@
                                                         <button type="submit">Cover</button>
                                                     </form>
                                                 }
-                                                <form asp-action="RemoveFeaturedSeriesPhoto" asp-controller="Home" method="post" data-confirm="Remove this photo from the series?">
-                                                    <input type="hidden" name="seriesId" value="@series.Id">
-                                                    <input type="hidden" name="imageUrl" value="@photoUrl">
-                                                    <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                                    <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                                    <button type="submit">Remove</button>
-                                                </form>
                                             </figcaption>
                                         </figure>
                                     }
+                                </div>
+                                <div class="series-photos-modal" data-series-photos-modal="@series.Id" hidden>
+                                    <div class="series-photos-modal__backdrop" data-series-photos-modal-close></div>
+                                    <section class="series-photos-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="series-photos-title-@series.Id">
+                                        <button class="series-photos-modal__close" type="button" aria-label="Close photo manager" data-series-photos-modal-close>
+                                            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                                        </button>
+                                        <span class="label">Photos</span>
+                                        <h3 id="series-photos-title-@series.Id">@series.Title</h3>
+                                        <div class="series-photos-modal__forms">
+                                            <div class="series-photos-modal__library">
+                                                <span>Add existing photo</span>
+                                                <div class="series-photos-modal__library-grid">
+                                                    @foreach (var option in Model.SeriesImageOptions)
+                                                    {
+                                                        var isAlreadyInSeries = series.PhotoUrls.Contains(option.Url, StringComparer.Ordinal);
+                                                        <form asp-action="AddFeaturedSeriesPhoto" asp-controller="Home" method="post">
+                                                            <input type="hidden" name="seriesId" value="@series.Id">
+                                                            <input type="hidden" name="imageUrl" value="@option.Url">
+                                                            <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                            <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                                            <button class="series-photos-modal__library-choice @(isAlreadyInSeries ? "series-photos-modal__library-choice--added" : string.Empty)" type="submit" disabled="@isAlreadyInSeries">
+                                                                <img src="@option.Url" alt="@option.DisplayName">
+                                                                <span>@option.DisplayName</span>
+                                                                <strong>@(isAlreadyInSeries ? "Added" : "Add photo")</strong>
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <form asp-action="UploadFeaturedSeriesPhotos" asp-controller="Home" method="post" enctype="multipart/form-data">
+                                                <input type="hidden" name="seriesId" value="@series.Id">
+                                                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                                <label>
+                                                    <span>Upload photos</span>
+                                                    <input name="images" type="file" accept="image/*" multiple required>
+                                                </label>
+                                                <label class="admin-check">
+                                                    <input type="checkbox" name="setFirstAsCover" value="true">
+                                                    Set first as cover
+                                                </label>
+                                                <button type="submit">Upload to series</button>
+                                            </form>
+                                        </div>
+                                        @if (series.PhotoUrls.Count == 0)
+                                        {
+                                            <p>No photos in this series yet.</p>
+                                        }
+                                        else
+                                        {
+                                            <div class="series-photos-modal__grid">
+                                                @foreach (var photoUrl in series.PhotoUrls)
+                                                {
+                                                    var isManagedCover = photoUrl == series.CoverImageUrl;
+                                                    <figure>
+                                                        <img src="@photoUrl" alt="@series.Title photo">
+                                                        <figcaption>
+                                                            @if (isManagedCover)
+                                                            {
+                                                                <strong>Cover</strong>
+                                                            }
+                                                            <form asp-action="RemoveFeaturedSeriesPhoto" asp-controller="Home" method="post" data-confirm="Remove this photo from the series?">
+                                                                <input type="hidden" name="seriesId" value="@series.Id">
+                                                                <input type="hidden" name="imageUrl" value="@photoUrl">
+                                                                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                                                <button class="series-photos-modal__remove" type="submit">Remove photo</button>
+                                                            </form>
+                                                        </figcaption>
+                                                    </figure>
+                                                }
+                                            </div>
+                                        }
+                                    </section>
                                 </div>
                                 <div class="series-cover-modal" data-series-cover-modal="@series.Id" hidden>
                                     <div class="series-cover-modal__backdrop" data-series-cover-modal-close></div>
@@ -363,25 +406,16 @@
                                                 @foreach (var photoUrl in series.PhotoUrls)
                                                 {
                                                     var isCoverChoice = photoUrl == series.CoverImageUrl;
-                                                    <div class="series-cover-modal__item">
-                                                        <form asp-action="SetFeaturedSeriesCover" asp-controller="Home" method="post">
-                                                            <input type="hidden" name="seriesId" value="@series.Id">
-                                                            <input type="hidden" name="imageUrl" value="@photoUrl">
-                                                            <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                                            <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                                            <button class="series-cover-modal__choice @(isCoverChoice ? "series-cover-modal__choice--active" : string.Empty)" type="submit">
-                                                                <img src="@photoUrl" alt="@series.Title cover option">
-                                                                <span>@(isCoverChoice ? "Current cover" : "Set cover")</span>
-                                                            </button>
-                                                        </form>
-                                                        <form asp-action="RemoveFeaturedSeriesPhoto" asp-controller="Home" method="post" data-confirm="Remove this photo from the series?">
-                                                            <input type="hidden" name="seriesId" value="@series.Id">
-                                                            <input type="hidden" name="imageUrl" value="@photoUrl">
-                                                            <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                                                            <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                                                            <button class="series-cover-modal__remove" type="submit">Remove photo</button>
-                                                        </form>
-                                                    </div>
+                                                    <form asp-action="SetFeaturedSeriesCover" asp-controller="Home" method="post">
+                                                        <input type="hidden" name="seriesId" value="@series.Id">
+                                                        <input type="hidden" name="imageUrl" value="@photoUrl">
+                                                        <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                                                        <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                                        <button class="series-cover-modal__choice @(isCoverChoice ? "series-cover-modal__choice--active" : string.Empty)" type="submit">
+                                                            <img src="@photoUrl" alt="@series.Title cover option">
+                                                            <span>@(isCoverChoice ? "Current cover" : "Set cover")</span>
+                                                        </button>
+                                                    </form>
                                                 }
                                             </div>
                                         }

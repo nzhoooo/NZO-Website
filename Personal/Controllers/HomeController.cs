@@ -159,7 +159,7 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddFeaturedSeriesPhoto(
         string seriesId,
-        string imageUrl,
+        string[] imageUrl,
         string librarySource = LocalLibrarySource,
         string cloudinaryFolder = "")
     {
@@ -170,9 +170,15 @@ public class HomeController : Controller
             cloudinaryFolder = string.Empty;
         }
 
-        if (!IsKnownSeriesImageUrl(imageUrl))
+        var validImageUrls = (imageUrl ?? [])
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Distinct(StringComparer.Ordinal)
+            .Where(IsKnownSeriesImageUrl)
+            .ToList();
+
+        if (validImageUrls.Count == 0)
         {
-            TempData["AdminMessage"] = "Choose a valid image for the series.";
+            TempData["AdminMessage"] = "Choose at least one valid image for the series.";
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
@@ -184,18 +190,21 @@ public class HomeController : Controller
             return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
         }
 
-        if (!series.PhotoUrls.Contains(imageUrl, StringComparer.Ordinal))
+        foreach (var validImageUrl in validImageUrls)
         {
-            series.PhotoUrls.Add(imageUrl);
+            if (!series.PhotoUrls.Contains(validImageUrl, StringComparer.Ordinal))
+            {
+                series.PhotoUrls.Add(validImageUrl);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(series.CoverImageUrl))
         {
-            series.CoverImageUrl = imageUrl;
+            series.CoverImageUrl = validImageUrls[0];
         }
 
         SaveSettings(settings);
-        TempData["AdminMessage"] = "Photo added to series.";
+        TempData["AdminMessage"] = validImageUrls.Count == 1 ? "Photo added to series." : "Photos added to series.";
 
         return RedirectToAction(nameof(Admin), new { librarySource, cloudinaryFolder });
     }

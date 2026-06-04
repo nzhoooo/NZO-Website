@@ -49,19 +49,19 @@
       "Title": "Studio Notes",
       "Description": "Controlled compositions for campaigns, keepsakes, and visual archives.",
       "Orientation": "landscape",
-      "CoverImageUrl": "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg",
-      "PhotoUrls": [
-        "/uploads/admin/20260530104554-3602dcdd3c444ebaadc0e1f31fb86347.jpg"
-      ]
+      "CoverImageUrl": "",
+      "PhotoUrls": []
     },
     {
       "Id": "architecture",
-      "Eyebrow": "Series 04",
-      "Title": "Architecture",
-      "Description": "Exploring the mathematical beauty of the modern urban landscape.",
+      "Eyebrow": "Human",
+      "Title": "Human Experience",
+      "Description": "What it means to be Human",
       "Orientation": "portrait",
-      "CoverImageUrl": "",
-      "PhotoUrls": []
+      "CoverImageUrl": "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg",
+      "PhotoUrls": [
+        "/uploads/admin/20260530105406-8c6771734f214da2a27467e6ecc33fe6.jpg"
+      ]
     },
     {
       "Id": "portraiture",

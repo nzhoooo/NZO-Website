@@ -504,6 +504,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  document.querySelectorAll("[data-series-photo-picker]").forEach((picker) => {
+    const checkboxes = [...picker.querySelectorAll('input[name="imageUrl"]')];
+    const addButton = picker.querySelector(".series-photos-modal__add-selected");
+
+    if (!addButton) {
+      return;
+    }
+
+    const updateAddButton = () => {
+      const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+      addButton.hidden = selectedCount === 0;
+      addButton.textContent = selectedCount === 1 ? "Add 1 photo" : `Add ${selectedCount} photos`;
+
+      checkboxes.forEach((checkbox) => {
+        const status = checkbox.closest(".series-photos-modal__library-choice")?.querySelector("strong");
+        if (status && !checkbox.disabled) {
+          status.textContent = checkbox.checked ? "Selected" : "Select";
+        }
+      });
+    };
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateAddButton);
+    });
+
+    updateAddButton();
+  });
+
   const uploadInput = document.querySelector("[data-upload-input]");
   const uploadLabel = document.querySelector("[data-upload-label]");
   const uploadPreview = document.querySelector("[data-upload-preview]");

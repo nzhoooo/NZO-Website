@@ -201,10 +201,33 @@ document.addEventListener("DOMContentLoaded", () => {
       alert = document.createElement("div");
       alert.className = "admin-alert";
       alert.setAttribute("role", "status");
-      adminShell.querySelector(".admin-hero")?.after(alert);
+      const body = adminShell.querySelector(".admin-window__body");
+      const title = adminShell.querySelector(".admin-room-title");
+      if (body && title) {
+        title.after(alert);
+      } else {
+        adminShell.prepend(alert);
+      }
     }
 
     alert.textContent = message;
+  };
+
+  const replaceAdminLayout = (html, message = "") => {
+    if (!adminShell) {
+      return;
+    }
+
+    const nextDocument = new DOMParser().parseFromString(html, "text/html");
+    const nextLayout = nextDocument.querySelector(".admin-room-layout");
+    const currentLayout = adminShell.querySelector(".admin-room-layout");
+    if (!nextLayout || !currentLayout) {
+      return;
+    }
+
+    currentLayout.replaceWith(nextLayout);
+    const responseMessage = message || nextDocument.querySelector(".admin-alert")?.textContent?.trim() || "";
+    showAdminMessage(responseMessage);
   };
 
   const seriesActionPaths = new Set([
@@ -260,41 +283,6 @@ document.addEventListener("DOMContentLoaded", () => {
     photoUrls: series.photoUrls ?? series.PhotoUrls ?? []
   });
 
-  const renderSeriesPhotoStrip = (panel, series) => {
-    const photos = panel.querySelector(".featured-series-admin__photos");
-    if (!photos) {
-      return;
-    }
-
-    photos.replaceChildren();
-    series.photoUrls.forEach((photoUrl) => {
-      const figure = document.createElement("figure");
-      const image = document.createElement("img");
-      const caption = document.createElement("figcaption");
-      image.src = photoUrl;
-      image.alt = `${series.title} photo`;
-
-      if (photoUrl === series.coverImageUrl) {
-        const strong = document.createElement("strong");
-        strong.textContent = "Cover";
-        caption.append(strong);
-      } else {
-        const form = document.createElement("form");
-        const button = document.createElement("button");
-        form.method = "post";
-        form.action = "/Home/SetFeaturedSeriesCover";
-        appendSeriesContext(form, panel, series.id, photoUrl);
-        button.type = "submit";
-        button.textContent = "Cover";
-        form.append(button);
-        caption.append(form);
-      }
-
-      figure.append(image, caption);
-      photos.append(figure);
-    });
-  };
-
   const renderSeriesCoverModal = (panel, series) => {
     const modal = panel.querySelector(`[data-series-cover-modal="${CSS.escape(series.id)}"]`);
     const grid = modal?.querySelector(".series-cover-modal__grid");
@@ -328,8 +316,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  const renderSeriesPhotosModal = (panel, series) => {
-    const modal = panel.querySelector(`[data-series-photos-modal="${CSS.escape(series.id)}"]`);
+  const renderSeriesAddedPhotosModal = (panel, series) => {
+    const modal = panel.querySelector(`[data-series-added-photos-modal="${CSS.escape(series.id)}"]`);
     if (!modal) {
       return;
     }
@@ -338,18 +326,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (heading) {
       heading.textContent = series.title;
     }
-    let grid = modal.querySelector(".series-photos-modal__grid");
-    let empty = modal.querySelector("[data-series-photos-empty]");
-    const dialog = modal.querySelector(".series-photos-modal__dialog");
+    let grid = modal.querySelector(".series-added-photos-modal__grid");
+    let empty = modal.querySelector("[data-series-added-photos-empty]");
+    const dialog = modal.querySelector(".series-added-photos-modal__dialog");
     if (!empty) {
       empty = document.createElement("p");
-      empty.dataset.seriesPhotosEmpty = "";
+      empty.dataset.seriesAddedPhotosEmpty = "";
       empty.textContent = "No photos in this series yet.";
       dialog?.append(empty);
     }
     if (!grid) {
       grid = document.createElement("div");
-      grid.className = "series-photos-modal__grid";
+      grid.className = "series-added-photos-modal__grid";
       dialog?.append(grid);
     }
 
@@ -378,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
       removeForm.action = "/Home/RemoveFeaturedSeriesPhoto";
       removeForm.dataset.confirm = "Remove this photo from the series?";
       appendSeriesContext(removeForm, panel, series.id, photoUrl);
-      removeButton.className = "series-photos-modal__remove";
+      removeButton.className = "series-added-photos-modal__remove";
       removeButton.type = "submit";
       removeButton.textContent = "Remove photo";
       removeForm.append(removeButton);
@@ -484,22 +472,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const photosTool = document.createElement("div");
     const photosToolLabel = document.createElement("span");
     const photosToolButton = document.createElement("button");
+    const addedPhotosTool = document.createElement("div");
+    const addedPhotosToolLabel = document.createElement("span");
+    const addedPhotosToolButton = document.createElement("button");
     const removeForm = document.createElement("form");
     const removeButton = document.createElement("button");
-    const photoStrip = document.createElement("div");
     const photosModal = document.createElement("div");
     const photosBackdrop = document.createElement("div");
     const photosDialog = document.createElement("section");
     const photosClose = document.createElement("button");
     const photosLabel = document.createElement("span");
     const photosTitle = document.createElement("h3");
-    const photosForms = document.createElement("div");
     const picker = document.createElement("form");
     const pickerLabel = document.createElement("span");
     const pickerGrid = document.createElement("div");
     const addSelected = document.createElement("button");
-    const photosEmpty = document.createElement("p");
-    const photosGrid = document.createElement("div");
+    const addedPhotosModal = document.createElement("div");
+    const addedPhotosBackdrop = document.createElement("div");
+    const addedPhotosDialog = document.createElement("section");
+    const addedPhotosClose = document.createElement("button");
+    const addedPhotosLabel = document.createElement("span");
+    const addedPhotosTitle = document.createElement("h3");
+    const addedPhotosEmpty = document.createElement("p");
+    const addedPhotosGrid = document.createElement("div");
     const coverModal = document.createElement("div");
     const coverBackdrop = document.createElement("div");
     const coverDialog = document.createElement("section");
@@ -556,11 +551,17 @@ document.addEventListener("DOMContentLoaded", () => {
     coverToolButton.textContent = "Choose cover";
     coverTool.append(coverToolLabel, coverToolButton);
     photosTool.className = "featured-series-admin__tool-panel";
-    photosToolLabel.textContent = "Photos";
+    photosToolLabel.textContent = "Add photos";
     photosToolButton.type = "button";
     photosToolButton.dataset.seriesPhotosModalOpen = series.id;
-    photosToolButton.textContent = "Manage photos";
+    photosToolButton.textContent = "Choose photos";
     photosTool.append(photosToolLabel, photosToolButton);
+    addedPhotosTool.className = "featured-series-admin__tool-panel";
+    addedPhotosToolLabel.textContent = "Added photos";
+    addedPhotosToolButton.type = "button";
+    addedPhotosToolButton.dataset.seriesAddedPhotosModalOpen = series.id;
+    addedPhotosToolButton.textContent = "View photos";
+    addedPhotosTool.append(addedPhotosToolLabel, addedPhotosToolButton);
     removeForm.className = "featured-series-admin__remove-series";
     removeForm.method = "post";
     removeForm.action = "/Home/RemoveFeaturedSeries";
@@ -574,10 +575,7 @@ document.addEventListener("DOMContentLoaded", () => {
     removeButton.type = "submit";
     removeButton.textContent = "Remove series";
     removeForm.append(removeButton);
-    tools.append(coverTool, photosTool, removeForm);
-
-    photoStrip.className = "featured-series-admin__photos";
-    photoStrip.setAttribute("aria-label", `${series.title} photos`);
+    tools.append(coverTool, photosTool, addedPhotosTool, removeForm);
 
     photosModal.className = "series-photos-modal";
     photosModal.dataset.seriesPhotosModal = series.id;
@@ -597,7 +595,6 @@ document.addEventListener("DOMContentLoaded", () => {
     photosLabel.textContent = "Photos";
     photosTitle.id = `series-photos-title-${series.id}`;
     photosTitle.textContent = series.title;
-    photosForms.className = "series-photos-modal__forms";
     picker.className = "series-photos-modal__library";
     picker.method = "post";
     picker.action = "/Home/AddFeaturedSeriesPhoto";
@@ -632,12 +629,32 @@ document.addEventListener("DOMContentLoaded", () => {
     addSelected.hidden = true;
     addSelected.textContent = "Add selected photos";
     picker.append(pickerLabel, pickerGrid, addSelected);
-    photosForms.append(picker);
-    photosEmpty.dataset.seriesPhotosEmpty = "";
-    photosEmpty.textContent = "No photos in this series yet.";
-    photosGrid.className = "series-photos-modal__grid";
-    photosDialog.append(photosClose, photosLabel, photosTitle, photosForms, photosEmpty, photosGrid);
+    photosDialog.append(photosClose, photosLabel, photosTitle, picker);
     photosModal.append(photosBackdrop, photosDialog);
+
+    addedPhotosModal.className = "series-added-photos-modal";
+    addedPhotosModal.dataset.seriesAddedPhotosModal = series.id;
+    addedPhotosModal.hidden = true;
+    addedPhotosBackdrop.className = "series-added-photos-modal__backdrop";
+    addedPhotosBackdrop.dataset.seriesAddedPhotosModalClose = "";
+    addedPhotosDialog.className = "series-added-photos-modal__dialog";
+    addedPhotosDialog.setAttribute("role", "dialog");
+    addedPhotosDialog.setAttribute("aria-modal", "true");
+    addedPhotosDialog.setAttribute("aria-labelledby", `series-added-photos-title-${series.id}`);
+    addedPhotosClose.className = "series-added-photos-modal__close";
+    addedPhotosClose.type = "button";
+    addedPhotosClose.setAttribute("aria-label", "Close added photos");
+    addedPhotosClose.dataset.seriesAddedPhotosModalClose = "";
+    addedPhotosClose.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">close</span>';
+    addedPhotosLabel.className = "label";
+    addedPhotosLabel.textContent = "Added Photos";
+    addedPhotosTitle.id = `series-added-photos-title-${series.id}`;
+    addedPhotosTitle.textContent = series.title;
+    addedPhotosEmpty.dataset.seriesAddedPhotosEmpty = "";
+    addedPhotosEmpty.textContent = "No photos in this series yet.";
+    addedPhotosGrid.className = "series-added-photos-modal__grid";
+    addedPhotosDialog.append(addedPhotosClose, addedPhotosLabel, addedPhotosTitle, addedPhotosEmpty, addedPhotosGrid);
+    addedPhotosModal.append(addedPhotosBackdrop, addedPhotosDialog);
 
     coverModal.className = "series-cover-modal";
     coverModal.dataset.seriesCoverModal = series.id;
@@ -661,7 +678,7 @@ document.addEventListener("DOMContentLoaded", () => {
     coverDialog.append(coverClose, coverLabel, coverTitle, coverGrid);
     coverModal.append(coverBackdrop, coverDialog);
 
-    body.append(editForm, tools, photoStrip, photosModal, coverModal);
+    body.append(editForm, tools, photosModal, addedPhotosModal, coverModal);
     panel.append(cover, body);
     detail.append(panel);
     updateSeriesDom(series);
@@ -712,9 +729,8 @@ document.addEventListener("DOMContentLoaded", () => {
       orientationInput.value = series.orientation;
     }
 
-    renderSeriesPhotoStrip(panel, series);
     renderSeriesCoverModal(panel, series);
-    renderSeriesPhotosModal(panel, series);
+    renderSeriesAddedPhotosModal(panel, series);
     updateSeriesPickerState(panel, series);
   };
 
@@ -785,6 +801,51 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       showAdminMessage(payload.message ?? payload.Message);
+    } catch (error) {
+      showAdminMessage(error.message);
+    } finally {
+      submitButton?.removeAttribute("disabled");
+    }
+  });
+
+  document.addEventListener("submit", async (event) => {
+    const form = event.target.closest("form");
+    if (!adminShell || !form || event.defaultPrevented || !adminShell.contains(form)) {
+      return;
+    }
+
+    const actionPath = new URL(form.action, window.location.href).pathname;
+    if (seriesActionPaths.has(actionPath)) {
+      return;
+    }
+
+    event.preventDefault();
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton?.setAttribute("disabled", "true");
+
+    try {
+      const response = await fetch(form.action, {
+        method: form.method || "post",
+        body: new FormData(form),
+        credentials: "same-origin",
+        headers: {
+          "Accept": "text/html",
+          "X-Requested-With": "fetch"
+        }
+      });
+      const responseHtml = await response.text();
+      if (!response.ok) {
+        const responseDocument = new DOMParser().parseFromString(responseHtml, "text/html");
+        throw new Error(responseDocument.querySelector(".admin-alert")?.textContent?.trim() || "Admin update failed.");
+      }
+
+      const responseDocument = new DOMParser().parseFromString(responseHtml, "text/html");
+      const responseMessage = responseDocument.querySelector(".admin-alert")?.textContent?.trim() || "Admin updated.";
+      const currentPage = await fetch(window.location.href, {
+        credentials: "same-origin",
+        headers: { "Accept": "text/html" }
+      });
+      replaceAdminLayout(await currentPage.text(), responseMessage);
     } catch (error) {
       showAdminMessage(error.message);
     } finally {
@@ -1065,6 +1126,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-admin-series-tab]");
+    const finder = tab?.closest("[data-admin-series-finder]");
+    if (!tab || !finder) {
+      return;
+    }
+
+    const seriesId = tab.dataset.adminSeriesTab;
+    finder.querySelectorAll("[data-admin-series-tab]").forEach((item) => {
+      const isActive = item.dataset.adminSeriesTab === seriesId;
+      item.classList.toggle("featured-series-finder__item--active", isActive);
+      item.setAttribute("aria-pressed", String(isActive));
+    });
+
+    finder.querySelectorAll("[data-admin-series-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.adminSeriesPanel !== seriesId;
+    });
+  });
+
   document.querySelectorAll("[data-series-cover-modal-open]").forEach((control) => {
     const modal = document.querySelector(`[data-series-cover-modal="${control.dataset.seriesCoverModalOpen}"]`);
     if (!modal) {
@@ -1094,6 +1174,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     control.addEventListener("click", () => {
       modal.hidden = false;
+      document.body.classList.add("is-modal-open");
     });
   });
 
@@ -1101,6 +1182,28 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.querySelectorAll("[data-series-photos-modal-close]").forEach((control) => {
       control.addEventListener("click", () => {
         modal.hidden = true;
+        document.body.classList.remove("is-modal-open");
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-series-added-photos-modal-open]").forEach((control) => {
+    const modal = document.querySelector(`[data-series-added-photos-modal="${control.dataset.seriesAddedPhotosModalOpen}"]`);
+    if (!modal) {
+      return;
+    }
+
+    control.addEventListener("click", () => {
+      modal.hidden = false;
+      document.body.classList.add("is-modal-open");
+    });
+  });
+
+  document.querySelectorAll("[data-series-added-photos-modal]").forEach((modal) => {
+    modal.querySelectorAll("[data-series-added-photos-modal-close]").forEach((control) => {
+      control.addEventListener("click", () => {
+        modal.hidden = true;
+        document.body.classList.remove("is-modal-open");
       });
     });
   });
@@ -1131,6 +1234,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const modal = document.querySelector(`[data-series-photos-modal="${CSS.escape(photosOpen.dataset.seriesPhotosModalOpen)}"]`);
       if (modal) {
         modal.hidden = false;
+        document.body.classList.add("is-modal-open");
       }
       return;
     }
@@ -1140,6 +1244,27 @@ document.addEventListener("DOMContentLoaded", () => {
       const modal = photosClose.closest("[data-series-photos-modal]");
       if (modal) {
         modal.hidden = true;
+        document.body.classList.remove("is-modal-open");
+      }
+      return;
+    }
+
+    const addedPhotosOpen = event.target.closest("[data-series-added-photos-modal-open]");
+    if (addedPhotosOpen) {
+      const modal = document.querySelector(`[data-series-added-photos-modal="${CSS.escape(addedPhotosOpen.dataset.seriesAddedPhotosModalOpen)}"]`);
+      if (modal) {
+        modal.hidden = false;
+        document.body.classList.add("is-modal-open");
+      }
+      return;
+    }
+
+    const addedPhotosClose = event.target.closest("[data-series-added-photos-modal-close]");
+    if (addedPhotosClose) {
+      const modal = addedPhotosClose.closest("[data-series-added-photos-modal]");
+      if (modal) {
+        modal.hidden = true;
+        document.body.classList.remove("is-modal-open");
       }
     }
   });
@@ -1152,6 +1277,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     refreshSeriesPhotoPicker(picker);
+  });
+
+  document.addEventListener("change", (event) => {
+    const checkbox = event.target.closest('[data-series-photo-picker] input[name="imageUrl"]');
+    if (checkbox) {
+      refreshSeriesPhotoPicker(checkbox.closest("[data-series-photo-picker]"));
+    }
   });
 
   const uploadInput = document.querySelector("[data-upload-input]");

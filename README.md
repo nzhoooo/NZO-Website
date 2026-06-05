@@ -24,12 +24,16 @@ If Cloudinary is not configured, uploads fall back to local `wwwroot/uploads/adm
 
 The admin page saves series, carousel choices, and uploaded image records to `App_Data/site-settings.json` by default. That file is inside the deployable app folder, so a Railway deploy can replace live admin changes with the local copy.
 
-For Railway, mount a persistent volume and set these environment variables to paths on that volume:
+For Railway, mount a persistent volume at `/data`. The app now defaults to these production paths automatically:
 
 ```bash
 SITE_SETTINGS_PATH=/data/site-settings.json
 ADMIN_UPLOADS_PATH=/data/uploads/admin
 ```
 
+Those environment variables are optional if the volume is mounted at `/data`, but setting them explicitly is still fine.
+
 If all admin images are uploaded to Cloudinary, `SITE_SETTINGS_PATH` is the important one. `ADMIN_UPLOADS_PATH` only matters for local fallback uploads.
+
+The local `App_Data/site-settings.json` and `wwwroot/uploads/admin` files are excluded from publish output so local admin data does not replace Railway admin data during deploy.
 # NZO-Website

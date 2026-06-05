@@ -13,6 +13,7 @@ public class HomeController : Controller
     private const string CloudinaryUploadFolder = "nzo-website";
     private const string AdminUploadsPathConfigurationKey = "ADMIN_UPLOADS_PATH";
     private const string SiteSettingsPathConfigurationKey = "SITE_SETTINGS_PATH";
+    private const string RailwayDataDirectory = "/data";
     private const string DashboardAdminPage = "dashboard";
     private const string SeriesAdminPage = "series";
     private const string LandingAdminPage = "landing";
@@ -1347,6 +1348,11 @@ public class HomeController : Controller
             return configuredPath;
         }
 
+        if (ShouldUseRailwayDataDirectory())
+        {
+            return Path.Combine(RailwayDataDirectory, "uploads", "admin");
+        }
+
         return Path.Combine(_environment.WebRootPath, "uploads", "admin");
     }
 
@@ -1356,6 +1362,11 @@ public class HomeController : Controller
         if (!string.IsNullOrWhiteSpace(configuredPath))
         {
             return Path.GetDirectoryName(configuredPath) ?? _environment.ContentRootPath;
+        }
+
+        if (ShouldUseRailwayDataDirectory())
+        {
+            return RailwayDataDirectory;
         }
 
         return Path.Combine(_environment.ContentRootPath, "App_Data");
@@ -1383,5 +1394,12 @@ public class HomeController : Controller
         return Path.IsPathRooted(configuredPath)
             ? configuredPath
             : Path.Combine(_environment.ContentRootPath, configuredPath);
+    }
+
+    private bool ShouldUseRailwayDataDirectory()
+    {
+        return !string.IsNullOrWhiteSpace(_configuration["RAILWAY_ENVIRONMENT"]) ||
+               !string.IsNullOrWhiteSpace(_configuration["RAILWAY_SERVICE_ID"]) ||
+               _environment.IsProduction();
     }
 }

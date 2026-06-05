@@ -1906,8 +1906,11 @@ button {
   position: relative;
   z-index: 1;
   display: grid;
-  width: min(100%, 820px);
+  align-content: start;
+  box-sizing: border-box;
+  width: min(calc(100vw - 48px), 820px);
   max-height: min(760px, calc(100vh - 48px));
+  overflow-x: hidden;
   overflow-y: auto;
   gap: 16px;
   border: 1px solid rgba(207, 196, 197, 0.32);
@@ -1915,6 +1918,11 @@ button {
   background: var(--surface-container-lowest);
   padding: 28px;
   box-shadow: var(--shadow-card);
+}
+
+.series-photos-modal__dialog {
+  grid-template-rows: auto auto auto;
+  overflow-y: hidden;
 }
 
 .series-cover-modal__close,
@@ -2008,6 +2016,11 @@ button {
 
 .series-photos-modal__library {
   display: grid;
+  align-content: start;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   gap: 12px;
   margin: 0;
   border: 1px solid rgba(207, 196, 197, 0.28);
@@ -2027,7 +2040,14 @@ button {
 
 .series-photos-modal__library-grid {
   display: grid;
-  max-height: 420px;
+  align-content: start;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: auto;
+  max-height: min(420px, calc(100vh - 260px));
+  overflow-x: hidden;
   overflow-y: auto;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -2036,6 +2056,10 @@ button {
 
 .featured-series-admin .series-photos-modal__library-choice {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
   min-height: auto;
   gap: 8px;
   border: 1px solid rgba(207, 196, 197, 0.28);
@@ -2049,6 +2073,10 @@ button {
 
 .series-photos-modal__library-choice input {
   position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -2080,11 +2108,13 @@ button {
 .series-photos-modal__library-choice img {
   display: block;
   width: 100%;
+  min-width: 0;
   aspect-ratio: 4 / 3;
   object-fit: cover;
 }
 
 .series-photos-modal__library-choice span {
+  min-width: 0;
   overflow: hidden;
   color: var(--on-surface);
   font-size: 11px;
@@ -2098,6 +2128,7 @@ button {
 
 .series-photos-modal__library-choice strong {
   display: inline-flex;
+  min-width: 0;
   min-height: 28px;
   align-items: center;
   justify-content: center;

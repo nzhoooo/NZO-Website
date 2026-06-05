@@ -3,6 +3,7 @@
     var browserTitle = string.Equals(pageTitle, "NZO", StringComparison.OrdinalIgnoreCase)
         ? "NZO"
         : $"{pageTitle} - NZO";
+    var hideSiteChrome = ViewData["HideSiteChrome"] is true;
 }
 
 <!DOCTYPE html>
@@ -22,6 +23,8 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
 </head>
 <body>
+@if (!hideSiteChrome)
+{
 <nav class="top-bar" id="top-nav" aria-label="Main menu">
     <div class="top-bar__left">
         <a class="top-bar__brand" asp-area="" asp-controller="Home" asp-action="Index">NZO</a>
@@ -67,7 +70,10 @@
         </button>
     </div>
 </nav>
+}
 
+@if (!hideSiteChrome)
+{
 <div class="admin-modal" data-admin-modal hidden>
     <div class="admin-modal__backdrop" data-admin-modal-close></div>
     <section class="admin-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="admin-modal-title">
@@ -87,11 +93,14 @@
         </form>
     </section>
 </div>
+}
 
 <main>
     @RenderBody()
 </main>
 
+@if (!hideSiteChrome)
+{
 <footer class="lumina-footer" id="contact">
     <div class="lumina-container lumina-footer__inner">
         <div>
@@ -105,7 +114,10 @@
         </div>
     </div>
 </footer>
+}
 
+@if (!hideSiteChrome)
+{
 <nav class="dock" aria-label="Section navigation">
     <a class="dock__item dock__item--active" href="/#home">
         <span class="material-symbols-outlined" aria-hidden="true">home</span>
@@ -128,6 +140,7 @@
         <span>Contact</span>
     </a>
 </nav>
+}
 
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)

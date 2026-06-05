@@ -2,25 +2,194 @@
 
 @{
     ViewData["Title"] = "Admin Setup";
+    ViewData["HideSiteChrome"] = true;
     var cloudinaryTargetLabel = string.IsNullOrWhiteSpace(Model.CurrentCloudinaryFolder)
         ? "Cloudinary root"
         : $"Cloudinary / {Model.CurrentCloudinaryFolder}";
+    var activeLibraryLabel = Model.CurrentLibrarySource == "cloudinary" ? cloudinaryTargetLabel : "Admin uploads";
+    var totalSeriesPhotos = Model.FeaturedSeries.Sum(series => series.PhotoUrls.Count);
+    var isDashboardPage = Model.CurrentAdminPage == "dashboard";
+    var isSeriesPage = Model.CurrentAdminPage == "series";
+    var isLandingPage = Model.CurrentAdminPage == "landing";
+    var isLibraryPage = Model.CurrentAdminPage == "library";
+    var windowTitle = Model.CurrentAdminPage switch
+    {
+        "series" => "Series Manager",
+        "landing" => "Landing Settings",
+        "library" => "Image Library",
+        _ => "Studio Overview"
+    };
 }
 
-<section class="admin-shell">
-    <div class="lumina-container">
-        <div class="admin-hero reveal">
-            <span class="label">Temporary Admin</span>
-            <h1>NZO control room.</h1>
-            <p>Early setup surface for managing site readiness, publishing tools, and accessibility preferences before the production upload flow goes live.</p>
+<section class="admin-shell admin-control-room">
+    <header class="admin-menubar" aria-label="Admin menu">
+        <strong>NZO</strong>
+        <nav class="top-bar__menus" aria-label="Studio menu">
+            <a class="top-menu__item top-menu__item--active" href="/#home">Home</a>
+            <div class="top-menu__group">
+                <button class="top-menu__item" type="button" aria-haspopup="true" aria-expanded="false">Gallery</button>
+                <div class="top-menu__dropdown" role="menu">
+                    <a role="menuitem" href="/#gallery">Main Gallery</a>
+                    <a role="menuitem" href="/#gallery">Featured Series</a>
+                    <a role="menuitem" href="/#archive">Archive</a>
+                    <a role="menuitem" href="/#works">Works</a>
+                </div>
+            </div>
+            <div class="top-menu__group">
+                <button class="top-menu__item" type="button" aria-haspopup="true" aria-expanded="false">Go</button>
+                <div class="top-menu__dropdown" role="menu">
+                    <a role="menuitem" href="/#studio">Profile</a>
+                    <a role="menuitem" href="/#contact">Contact</a>
+                    <a role="menuitem" href="/#services">Services</a>
+                    <a role="menuitem" href="/#gear">Gear</a>
+                    <a role="menuitem" href="/#pricing">Pricing</a>
+                    <a role="menuitem" href="/#credentials">Credentials</a>
+                    <a role="menuitem" href="https://www.instagram.com/nzhoooo" target="_blank" rel="noopener noreferrer">Instagram @@nzhoooo</a>
+                </div>
+            </div>
+            <div class="top-menu__group">
+                <button class="top-menu__item" type="button" aria-haspopup="true" aria-expanded="false">Window</button>
+                <div class="top-menu__dropdown" role="menu">
+                    <a role="menuitem" href="/">Guest</a>
+                    <a role="menuitem" asp-action="Admin" asp-controller="Home" asp-route-adminPage="dashboard" asp-route-librarySource="@Model.CurrentLibrarySource" asp-route-cloudinaryFolder="@Model.CurrentCloudinaryFolder">Admin</a>
+                </div>
+            </div>
+            <a class="top-menu__item" asp-area="" asp-controller="Home" asp-action="Help">Help</a>
+        </nav>
+        <div class="admin-menubar__actions" aria-label="Admin actions">
+            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+            <span class="material-symbols-outlined" aria-hidden="true">settings</span>
         </div>
+    </header>
+
+    <div class="admin-room-layout">
+        <aside class="admin-room-sidebar reveal" aria-label="Admin control room sidebar">
+            <div class="admin-room-brand">
+                <span class="admin-room-brand__mark">
+                    <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+                </span>
+                <div>
+                    <strong>NZO<br>Studio</strong>
+                    <span>Admin Console</span>
+                </div>
+            </div>
+
+            <nav class="admin-room-nav" aria-label="Admin sections">
+                <a class="admin-room-nav__item @(isDashboardPage ? "admin-room-nav__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="dashboard" asp-route-librarySource="@Model.CurrentLibrarySource" asp-route-cloudinaryFolder="@Model.CurrentCloudinaryFolder">
+                    <span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+                    Dashboard
+                </a>
+                <a class="admin-room-nav__item @(isSeriesPage ? "admin-room-nav__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="series" asp-route-librarySource="@Model.CurrentLibrarySource" asp-route-cloudinaryFolder="@Model.CurrentCloudinaryFolder">
+                    <span class="material-symbols-outlined" aria-hidden="true">collections_bookmark</span>
+                    Series
+                </a>
+                <a class="admin-room-nav__item @(isLandingPage ? "admin-room-nav__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="landing" asp-route-librarySource="@Model.CurrentLibrarySource" asp-route-cloudinaryFolder="@Model.CurrentCloudinaryFolder">
+                    <span class="material-symbols-outlined" aria-hidden="true">view_carousel</span>
+                    Landing
+                </a>
+                <a class="admin-room-nav__item @(isLibraryPage ? "admin-room-nav__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="library" asp-route-librarySource="@Model.CurrentLibrarySource" asp-route-cloudinaryFolder="@Model.CurrentCloudinaryFolder">
+                    <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+                    Library
+                </a>
+            </nav>
+
+            <section class="admin-sidebar-panel" aria-labelledby="sidebar-settings-title">
+                <h2 id="sidebar-settings-title">Working Settings</h2>
+                <dl class="admin-sidebar-stats">
+                    <div>
+                        <dt>Library</dt>
+                        <dd>@activeLibraryLabel</dd>
+                    </div>
+                    <div>
+                        <dt>Series</dt>
+                        <dd>@Model.FeaturedSeries.Count active</dd>
+                    </div>
+                    <div>
+                        <dt>Series Photos</dt>
+                        <dd>@totalSeriesPhotos assigned</dd>
+                    </div>
+                    <div>
+                        <dt>Carousel</dt>
+                        <dd>@Model.LandingCarouselImages.Count slides</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-sidebar-panel" aria-label="Library source">
+                <h2>Library Source</h2>
+                <a class="admin-room-source @(Model.CurrentLibrarySource == "local" ? "admin-room-source--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="@Model.CurrentAdminPage" asp-route-librarySource="local">
+                    <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+                    Admin uploads
+                </a>
+                <a class="admin-room-source @(Model.CurrentLibrarySource == "cloudinary" ? "admin-room-source--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-adminPage="@Model.CurrentAdminPage" asp-route-librarySource="cloudinary">
+                    <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
+                    Cloudinary
+                </a>
+                @if (Model.CurrentLibrarySource == "cloudinary")
+                {
+                    <div class="admin-room-folders" aria-label="Cloudinary folders">
+                        @foreach (var folder in Model.CloudinaryFolders)
+                        {
+                            <a class="admin-room-folder @(Model.CurrentCloudinaryFolder == folder.Folder ? "admin-room-folder--active" : string.Empty)"
+                               asp-action="Admin"
+                               asp-controller="Home"
+                               asp-route-adminPage="@Model.CurrentAdminPage"
+                               asp-route-librarySource="cloudinary"
+                               asp-route-cloudinaryFolder="@folder.Folder">
+                                <span class="material-symbols-outlined" aria-hidden="true">@(folder.IsRoot ? "home_storage" : "folder_open")</span>
+                                @folder.Name
+                            </a>
+                        }
+                    </div>
+                    <form class="admin-room-folder-form" asp-action="CreateCloudinaryFolder" asp-controller="Home" method="post">
+                        <label for="admin-cloudinary-folder-name">New folder</label>
+                        <div>
+                            <input id="admin-cloudinary-folder-name" name="folderName" type="text" placeholder="folder name" autocomplete="off">
+                            <button type="submit" aria-label="Create Cloudinary folder">
+                                <span class="material-symbols-outlined" aria-hidden="true">create_new_folder</span>
+                            </button>
+                        </div>
+                    </form>
+                }
+            </section>
+
+            <form class="admin-sidebar-upload" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
+                <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                <label>
+                    <span class="material-symbols-outlined" aria-hidden="true">upload</span>
+                    Upload Photo
+                    <input type="file" name="images" accept="image/*" multiple required onchange="this.form.submit()">
+                </label>
+            </form>
+        </aside>
+
+        <main class="admin-room-main">
+            <div class="admin-window reveal">
+                <div class="admin-window__bar">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <strong>@windowTitle</strong>
+                </div>
+                <div class="admin-window__body">
+                    <div class="admin-room-title" id="studio-overview">
+                        <span class="label">Admin Console</span>
+                        <h1>@windowTitle</h1>
+                        <p>Manage the current public-site settings: series, landing carousel, image library, and upload destination.</p>
+                    </div>
 
         @if (TempData["AdminMessage"] is string message)
         {
             <div class="admin-alert" role="status">@message</div>
         }
 
+        @if (!isLibraryPage)
+        {
         <div class="admin-grid">
+            @if (isDashboardPage)
+            {
             <article class="admin-card admin-card--wide reveal">
                 <div class="admin-card__icon">
                     <span class="material-symbols-outlined" aria-hidden="true">settings</span>
@@ -45,55 +214,11 @@
                     </div>
                 </div>
             </article>
+            }
 
-            <article class="admin-card admin-card--wide reveal">
-                <div class="admin-card__icon admin-card__icon--blue">
-                    <span class="material-symbols-outlined" aria-hidden="true">upload</span>
-                </div>
-                <span class="label">Publishing</span>
-                <h2>Upload images</h2>
-                <p>Add images to the selected library. Cloudinary uploads go into the active Cloudinary folder.</p>
-                <form class="upload-form" asp-action="UploadImages" asp-controller="Home" method="post" enctype="multipart/form-data">
-                    <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
-                    <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
-                    <div class="upload-target-pill">
-                        <span class="material-symbols-outlined" aria-hidden="true">@(Model.CurrentLibrarySource == "cloudinary" ? "cloud_done" : "folder")</span>
-                        <span>@(Model.CurrentLibrarySource == "cloudinary" ? cloudinaryTargetLabel : "Admin uploads")</span>
-                    </div>
-                    <label class="file-drop">
-                        <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
-                        <span data-upload-label>Add images</span>
-                        <input type="file" name="images" accept="image/*" multiple required data-upload-input>
-                    </label>
-                    <div class="upload-preview" data-upload-preview hidden>
-                        <div class="upload-preview__head">
-                            <span>Ready to upload</span>
-                            <button type="button" data-upload-clear>Clear</button>
-                        </div>
-                        <div class="upload-preview__grid" data-upload-preview-grid></div>
-                    </div>
-                    <label class="admin-check">
-                        <input type="checkbox" name="useAsLandingBackground" value="true">
-                        Set first upload as landing background
-                    </label>
-                    <button class="soft-button" type="submit">
-                        Upload
-                        <span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span>
-                    </button>
-                </form>
-            </article>
-
-            <article class="admin-card reveal">
-                <div class="admin-card__icon admin-card__icon--dark">
-                    <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-                </div>
-                <span class="label">Access</span>
-                <h2>Admin access</h2>
-                <p>This button is public while the site is local. Before launch, we can move it behind authentication or remove it from the public chrome.</p>
-                <div class="status-pill">Local only for now</div>
-            </article>
-
-            <article class="admin-card admin-card--wide reveal">
+            @if (isLandingPage)
+            {
+            <article class="admin-card admin-card--wide reveal" id="landing-settings">
                 <div class="admin-card__icon admin-card__icon--soft">
                     <span class="material-symbols-outlined" aria-hidden="true">wallpaper</span>
                 </div>
@@ -105,7 +230,7 @@
                 </div>
             </article>
 
-            <article class="admin-card admin-card--full reveal">
+            <article class="admin-card admin-card--full reveal" id="landing-carousel">
                 <div class="admin-card__icon admin-card__icon--blue">
                     <span class="material-symbols-outlined" aria-hidden="true">view_carousel</span>
                 </div>
@@ -155,7 +280,10 @@
                     }
                 </div>
             </article>
+            }
 
+            @if (isSeriesPage)
+            {
             <article class="admin-card admin-card--full reveal">
                 <div class="admin-card__icon admin-card__icon--blue">
                     <span class="material-symbols-outlined" aria-hidden="true">collections_bookmark</span>
@@ -413,37 +541,13 @@
                     </div>
                 </div>
             </article>
+            }
 
-            <article class="admin-card admin-card--wide reveal">
-                <div class="admin-card__icon admin-card__icon--soft">
-                    <span class="material-symbols-outlined" aria-hidden="true">accessibility_new</span>
-                </div>
-                <div>
-                    <span class="label">Accessibility</span>
-                    <h2>Visitor comfort controls</h2>
-                    <p>Checklist for keeping the site usable across motion preferences, contrast needs, keyboard navigation, and responsive layouts.</p>
-                </div>
-                <div class="accessibility-list" aria-label="Accessibility setup list">
-                    <label>
-                        <input type="checkbox" checked disabled>
-                        Reduced-motion support
-                    </label>
-                    <label>
-                        <input type="checkbox" checked disabled>
-                        Keyboard-friendly navigation
-                    </label>
-                    <label>
-                        <input type="checkbox" checked disabled>
-                        Responsive dock layout
-                    </label>
-                    <label>
-                        <input type="checkbox" disabled>
-                        Production admin authentication
-                    </label>
-                </div>
-            </article>
         </div>
+        }
 
+        @if (isLibraryPage)
+        {
         <section class="admin-library reveal" aria-labelledby="image-library-title">
             <div class="section-head">
                 <div>
@@ -458,39 +562,7 @@
                     <span></span>
                     <span></span>
                 </div>
-                <div class="finder-window__body">
-                    <aside class="finder-sidebar" aria-label="Image library folders">
-                        <a class="finder-sidebar__item @(Model.CurrentLibrarySource == "local" ? "finder-sidebar__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-librarySource="local">
-                            <span class="material-symbols-outlined" aria-hidden="true">folder</span>
-                            Admin uploads
-                        </a>
-                        <a class="finder-sidebar__item @(Model.CurrentLibrarySource == "cloudinary" ? "finder-sidebar__item--active" : string.Empty)" asp-action="Admin" asp-controller="Home" asp-route-librarySource="cloudinary">
-                            <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
-                            Cloudinary
-                        </a>
-                        <div class="finder-sidebar__folder-list" aria-label="Cloudinary folders">
-                            @foreach (var folder in Model.CloudinaryFolders)
-                            {
-                                <a class="finder-sidebar__subitem @(Model.CurrentLibrarySource == "cloudinary" && Model.CurrentCloudinaryFolder == folder.Folder ? "finder-sidebar__subitem--active" : string.Empty)"
-                                   asp-action="Admin"
-                                   asp-controller="Home"
-                                   asp-route-librarySource="cloudinary"
-                                   asp-route-cloudinaryFolder="@folder.Folder">
-                                    <span class="material-symbols-outlined" aria-hidden="true">@(folder.IsRoot ? "home_storage" : "folder_open")</span>
-                                    @folder.Name
-                                </a>
-                            }
-                        </div>
-                        <form class="cloud-folder-form" asp-action="CreateCloudinaryFolder" asp-controller="Home" method="post">
-                            <label for="cloudinary-folder-name">New Cloudinary folder</label>
-                            <div>
-                                <input id="cloudinary-folder-name" name="folderName" type="text" placeholder="folder name" autocomplete="off">
-                                <button type="submit" aria-label="Create Cloudinary folder">
-                                    <span class="material-symbols-outlined" aria-hidden="true">create_new_folder</span>
-                                </button>
-                            </div>
-                        </form>
-                    </aside>
+                <div class="finder-window__body finder-window__body--single">
                     @if (Model.UploadedImages.Count == 0)
                     {
                         <div class="empty-library">
@@ -565,5 +637,9 @@
                 </div>
             </div>
         </section>
+        }
+                </div>
+            </div>
+        </main>
     </div>
 </section>

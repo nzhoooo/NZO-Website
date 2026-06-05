@@ -11,6 +11,12 @@ public class HomeController : Controller
 {
     private const string DefaultLandingBackground = "/images/lumina/hero.jpg";
     private const string CloudinaryUploadFolder = "nzo-website";
+    private const string AdminUploadsPathConfigurationKey = "ADMIN_UPLOADS_PATH";
+    private const string SiteSettingsPathConfigurationKey = "SITE_SETTINGS_PATH";
+    private const string DashboardAdminPage = "dashboard";
+    private const string SeriesAdminPage = "series";
+    private const string LandingAdminPage = "landing";
+    private const string LibraryAdminPage = "library";
     private const string LocalLibrarySource = "local";
     private const string CloudinaryLibrarySource = "cloudinary";
     private static readonly string[] FallbackLandingCarouselImages =
@@ -68,9 +74,12 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Admin(string librarySource = LocalLibrarySource, string cloudinaryFolder = "")
+    public IActionResult Admin(
+        string adminPage = DashboardAdminPage,
+        string librarySource = LocalLibrarySource,
+        string cloudinaryFolder = "")
     {
-        return View(CreateAdminViewModel(librarySource, cloudinaryFolder));
+        return View(CreateAdminViewModel(adminPage, librarySource, cloudinaryFolder));
     }
 
     [HttpPost]
@@ -594,9 +603,10 @@ public class HomeController : Controller
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 
-    private AdminViewModel CreateAdminViewModel(string librarySource, string cloudinaryFolder)
+    private AdminViewModel CreateAdminViewModel(string adminPage, string librarySource, string cloudinaryFolder)
     {
         var settings = GetSettings();
+        var normalizedAdminPage = NormalizeAdminPage(adminPage);
         var normalizedLibrarySource = NormalizeLibrarySource(librarySource);
         var normalizedCloudinaryFolder = normalizedLibrarySource == CloudinaryLibrarySource
             ? NormalizeCloudinaryFolder(cloudinaryFolder)
@@ -605,6 +615,7 @@ public class HomeController : Controller
 
         return new AdminViewModel
         {
+            CurrentAdminPage = normalizedAdminPage,
             CurrentLandingBackground = settings.LandingBackground,
             LandingCarouselImages = GetLandingCarouselImages(settings, includeCloudinaryLibrary: true),
             CarouselImageOptions = GetCarouselImageOptions(settings, includeCloudinaryLibrary: true),
@@ -1133,6 +1144,17 @@ public class HomeController : Controller
             : LocalLibrarySource;
     }
 
+    private static string NormalizeAdminPage(string? adminPage)
+    {
+        return adminPage?.ToLowerInvariant() switch
+        {
+            SeriesAdminPage => SeriesAdminPage,
+            LandingAdminPage => LandingAdminPage,
+            LibraryAdminPage => LibraryAdminPage,
+            _ => DashboardAdminPage
+        };
+    }
+
     private static string NormalizeCloudinaryFolder(string? folderName)
     {
         if (string.IsNullOrWhiteSpace(folderName))
@@ -1319,16 +1341,47 @@ public class HomeController : Controller
 
     private string GetUploadDirectory()
     {
+        var configuredPath = GetConfiguredStoragePath(AdminUploadsPathConfigurationKey);
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
         return Path.Combine(_environment.WebRootPath, "uploads", "admin");
     }
 
     private string GetSettingsDirectory()
     {
+        var configuredPath = GetConfiguredStoragePath(SiteSettingsPathConfigurationKey);
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return Path.GetDirectoryName(configuredPath) ?? _environment.ContentRootPath;
+        }
+
         return Path.Combine(_environment.ContentRootPath, "App_Data");
     }
 
     private string GetSettingsPath()
     {
+        var configuredPath = GetConfiguredStoragePath(SiteSettingsPathConfigurationKey);
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
         return Path.Combine(GetSettingsDirectory(), "site-settings.json");
+    }
+
+    private string GetConfiguredStoragePath(string configurationKey)
+    {
+        var configuredPath = _configuration[configurationKey];
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return string.Empty;
+        }
+
+        return Path.IsPathRooted(configuredPath)
+            ? configuredPath
+            : Path.Combine(_environment.ContentRootPath, configuredPath);
     }
 }

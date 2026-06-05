@@ -2,6 +2,8 @@ namespace Personal.Models;
 
 public sealed class AdminViewModel
 {
+    public string CurrentAdminPage { get; init; } = "dashboard";
+
     public string CurrentLandingBackground { get; init; } = "/images/lumina/hero.jpg";
 
     public IReadOnlyList<string> LandingCarouselImages { get; init; } = [];

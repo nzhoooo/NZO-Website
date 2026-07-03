@@ -45,8 +45,8 @@
                         <span>Masonry</span>
                     </button>
                 </div>
-                <a class="soft-button" href="#journal">
-                    View All Works
+                <a class="soft-button" asp-action="Albums" asp-controller="Home">
+                    View Albums
                     <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                 </a>
             </div>
@@ -58,7 +58,10 @@
                 var series = Model.FeaturedSeries[index];
                 var isHidden = index >= seriesPageSize;
                 var plainWindow = index == 0 ? string.Empty : " image-window--plain";
-                <article class="series-card reveal tilt-card"
+                <a class="series-card reveal tilt-card"
+                         asp-action="Album"
+                         asp-controller="Home"
+                         asp-route-id="@series.Id"
                          data-series-card
                          data-series-index="@index"
                          data-series-orientation="@series.Orientation"
@@ -82,7 +85,7 @@
                         <h3>@series.Title</h3>
                         <p>@series.Description</p>
                     </div>
-                </article>
+                </a>
             }
         </div>
 

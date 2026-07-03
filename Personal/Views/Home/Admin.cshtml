@@ -30,7 +30,7 @@
                 <button class="top-menu__item" type="button" aria-haspopup="true" aria-expanded="false">Gallery</button>
                 <div class="top-menu__dropdown" role="menu">
                     <a role="menuitem" href="/#gallery">Main Gallery</a>
-                    <a role="menuitem" href="/#gallery">Featured Series</a>
+                    <a role="menuitem" asp-action="Albums" asp-controller="Home">Albums / Series</a>
                     <a role="menuitem" href="/#archive">Archive</a>
                     <a role="menuitem" href="/#works">Works</a>
                 </div>
@@ -403,8 +403,8 @@
                                     </div>
 
                                     <div class="featured-series-admin__tool-panel">
-                                        <span>Add photos</span>
-                                        <button type="button" data-series-photos-modal-open="@series.Id">Choose photos</button>
+                                        <span>Add pictures</span>
+                                        <button type="button" data-series-photos-modal-open="@series.Id">Add pics</button>
                                     </div>
 
                                     <div class="featured-series-admin__tool-panel">
@@ -429,10 +429,14 @@
                                         <span class="label">Photos</span>
                                         <h3 id="series-photos-title-@series.Id">@series.Title</h3>
                                         <form class="series-photos-modal__library" asp-action="AddFeaturedSeriesPhoto" asp-controller="Home" method="post" data-series-photo-picker>
-                                            <span>Add existing photo</span>
+                                            <span>Add existing photos</span>
                                             <input type="hidden" name="seriesId" value="@series.Id">
                                             <input type="hidden" name="librarySource" value="@Model.CurrentLibrarySource">
                                             <input type="hidden" name="cloudinaryFolder" value="@Model.CurrentCloudinaryFolder">
+                                            <label class="series-photos-modal__search">
+                                                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                                                <input type="search" placeholder="Search photos" data-series-photo-search>
+                                            </label>
                                             <div class="series-photos-modal__library-grid">
                                                 @foreach (var option in Model.SeriesImageOptions)
                                                 {

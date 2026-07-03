@@ -65,6 +65,31 @@ public class HomeController : Controller
         });
     }
 
+    public IActionResult Albums()
+    {
+        return View(new AlbumsViewModel
+        {
+            Albums = GetFeaturedSeries(GetSettings())
+        });
+    }
+
+    [HttpGet("Home/Albums/{id}")]
+    public IActionResult Album(string id)
+    {
+        var album = GetFeaturedSeries(GetSettings())
+            .FirstOrDefault(series => string.Equals(series.Id, id, StringComparison.Ordinal));
+
+        if (album is null)
+        {
+            return NotFound();
+        }
+
+        return View(new AlbumViewModel
+        {
+            Album = album
+        });
+    }
+
     public IActionResult Privacy()
     {
         return View();
@@ -641,12 +666,17 @@ public class HomeController : Controller
             {
                 var coverImageUrl = GetSeriesCoverImageUrl(series);
                 return new FeaturedSeriesItem(
+                    series.Id,
                     series.Eyebrow,
                     series.Title,
                     series.Description,
                     coverImageUrl,
                     $"{series.Title} series cover",
-                    NormalizeSeriesOrientation(series.Orientation));
+                    NormalizeSeriesOrientation(series.Orientation),
+                    series.PhotoUrls
+                        .Where(photoUrl => !string.IsNullOrWhiteSpace(photoUrl))
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList());
             })
             .ToList();
     }
@@ -859,7 +889,7 @@ public class HomeController : Controller
                 cloudinaryResources.AddRange(listedResources.Resources);
                 nextCursor = listedResources.NextCursor;
             }
-            while (!string.IsNullOrWhiteSpace(nextCursor) && cloudinaryResources.Count < 500);
+            while (!string.IsNullOrWhiteSpace(nextCursor) && cloudinaryResources.Count < 1000);
 
             return cloudinaryResources
                 .Where(resource => !string.IsNullOrWhiteSpace(resource.SecureUrl?.ToString() ?? resource.Url?.ToString()))

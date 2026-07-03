@@ -34,7 +34,7 @@
                 <button class="top-menu__item" type="button" aria-haspopup="true" aria-expanded="false">Gallery</button>
                 <div class="top-menu__dropdown" role="menu">
                     <a role="menuitem" href="/#gallery">Main Gallery</a>
-                    <a role="menuitem" href="/#gallery">Featured Series</a>
+                    <a role="menuitem" asp-action="Albums" asp-controller="Home">Albums / Series</a>
                     <a role="menuitem" href="/#archive">Archive</a>
                     <a role="menuitem" href="/#works">Works</a>
                 </div>
@@ -126,6 +126,10 @@
     <a class="dock__item" href="/#gallery">
         <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
         <span>Gallery</span>
+    </a>
+    <a class="dock__item" asp-action="Albums" asp-controller="Home">
+        <span class="material-symbols-outlined" aria-hidden="true">collections_bookmark</span>
+        <span>Albums</span>
     </a>
     <a class="dock__item" href="/#journal">
         <span class="material-symbols-outlined" aria-hidden="true">auto_stories</span>

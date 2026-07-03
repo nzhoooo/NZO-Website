@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeHeroSlide = 0;
   const dockLinks = [...document.querySelectorAll(".dock__item")];
   const dockTargets = dockLinks
+    .filter((link) => link.hash)
     .map((link) => ({
       link,
       target: document.querySelector(link.hash)
@@ -395,6 +396,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  const filterSeriesPhotoPicker = (picker) => {
+    const query = picker.querySelector("[data-series-photo-search]")?.value.trim().toLowerCase() || "";
+    picker.querySelectorAll(".series-photos-modal__library-choice").forEach((choice) => {
+      const label = choice.textContent.trim().toLowerCase();
+      choice.hidden = query.length > 0 && !label.includes(query);
+    });
+  };
+
   const updateSeriesPickerState = (panel, series) => {
     const picker = panel.querySelector("[data-series-photo-picker]");
     if (!picker) {
@@ -551,10 +560,10 @@ document.addEventListener("DOMContentLoaded", () => {
     coverToolButton.textContent = "Choose cover";
     coverTool.append(coverToolLabel, coverToolButton);
     photosTool.className = "featured-series-admin__tool-panel";
-    photosToolLabel.textContent = "Add photos";
+    photosToolLabel.textContent = "Add pictures";
     photosToolButton.type = "button";
     photosToolButton.dataset.seriesPhotosModalOpen = series.id;
-    photosToolButton.textContent = "Choose photos";
+    photosToolButton.textContent = "Add pics";
     photosTool.append(photosToolLabel, photosToolButton);
     addedPhotosTool.className = "featured-series-admin__tool-panel";
     addedPhotosToolLabel.textContent = "Added photos";
@@ -605,7 +614,19 @@ document.addEventListener("DOMContentLoaded", () => {
     appendHiddenInput(picker, "seriesId", series.id);
     appendHiddenInput(picker, "librarySource", librarySource);
     appendHiddenInput(picker, "cloudinaryFolder", cloudinaryFolder);
-    pickerLabel.textContent = "Add existing photo";
+    pickerLabel.textContent = "Add existing photos";
+    const pickerSearch = document.createElement("label");
+    const pickerSearchIcon = document.createElement("span");
+    const pickerSearchInput = document.createElement("input");
+    pickerSearch.className = "series-photos-modal__search";
+    pickerSearchIcon.className = "material-symbols-outlined";
+    pickerSearchIcon.setAttribute("aria-hidden", "true");
+    pickerSearchIcon.textContent = "search";
+    pickerSearchInput.type = "search";
+    pickerSearchInput.placeholder = "Search photos";
+    pickerSearchInput.dataset.seriesPhotoSearch = "";
+    pickerSearch.append(pickerSearchIcon, pickerSearchInput);
+    pickerSearchInput.addEventListener("input", () => filterSeriesPhotoPicker(picker));
     pickerGrid.className = "series-photos-modal__library-grid";
     const sourcePicker = document.querySelector("[data-series-photo-picker]");
     sourcePicker?.querySelectorAll(".series-photos-modal__library-choice").forEach((choice) => {
@@ -628,7 +649,7 @@ document.addEventListener("DOMContentLoaded", () => {
     addSelected.type = "submit";
     addSelected.hidden = true;
     addSelected.textContent = "Add selected photos";
-    picker.append(pickerLabel, pickerGrid, addSelected);
+    picker.append(pickerLabel, pickerSearch, pickerGrid, addSelected);
     photosDialog.append(photosClose, photosLabel, photosTitle, picker);
     photosModal.append(photosBackdrop, photosDialog);
 
@@ -806,6 +827,124 @@ document.addEventListener("DOMContentLoaded", () => {
     } finally {
       submitButton?.removeAttribute("disabled");
     }
+  });
+
+  document.addEventListener("input", (event) => {
+    const search = event.target.closest("[data-series-photo-search]");
+    if (!search) {
+      return;
+    }
+
+    filterSeriesPhotoPicker(search.closest("[data-series-photo-picker]"));
+  });
+
+  document.querySelectorAll("[data-albums-page]").forEach((albumsPage) => {
+    const tabs = [...albumsPage.querySelectorAll("[data-album-tab]")];
+    const panels = [...albumsPage.querySelectorAll("[data-album-panel]")];
+    const lightbox = albumsPage.querySelector("[data-album-lightbox]");
+    const lightboxImage = albumsPage.querySelector("[data-album-lightbox-image]");
+    const lightboxTitle = albumsPage.querySelector("[data-album-lightbox-title]");
+    const lightboxCount = albumsPage.querySelector("[data-album-lightbox-count]");
+    const previousButton = albumsPage.querySelector("[data-album-lightbox-prev]");
+    const nextButton = albumsPage.querySelector("[data-album-lightbox-next]");
+    let activeAlbumId = tabs[0]?.dataset.albumTab || "";
+    let activeImages = [];
+    let activeImageIndex = 0;
+
+    const showAlbum = (albumId) => {
+      activeAlbumId = albumId;
+      tabs.forEach((tab) => {
+        const isActive = tab.dataset.albumTab === albumId;
+        tab.classList.toggle("albums-sidebar__item--active", isActive);
+        tab.setAttribute("aria-pressed", String(isActive));
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.albumPanel !== albumId;
+      });
+    };
+
+    const setLightboxImage = (index) => {
+      if (!lightbox || !lightboxImage || activeImages.length === 0) {
+        return;
+      }
+
+      activeImageIndex = (index + activeImages.length) % activeImages.length;
+      const imageButton = activeImages[activeImageIndex];
+      const title = imageButton.dataset.imageTitle || "Album photo";
+      lightboxImage.src = imageButton.dataset.imageUrl || "";
+      lightboxImage.alt = title;
+      if (lightboxTitle) {
+        lightboxTitle.textContent = title;
+      }
+      if (lightboxCount) {
+        lightboxCount.textContent = `${activeImageIndex + 1} of ${activeImages.length}`;
+      }
+      if (previousButton) {
+        previousButton.disabled = activeImages.length < 2;
+      }
+      if (nextButton) {
+        nextButton.disabled = activeImages.length < 2;
+      }
+    };
+
+    const openLightbox = (imageButton) => {
+      const albumId = imageButton.dataset.albumId || activeAlbumId;
+      const panel = albumsPage.querySelector(`[data-album-panel="${CSS.escape(albumId)}"]`);
+      if (!panel) {
+        return;
+      }
+      activeImages = [...panel.querySelectorAll("[data-album-image]")];
+      const imageIndex = activeImages.indexOf(imageButton);
+      if (!lightbox || imageIndex < 0) {
+        return;
+      }
+
+      setLightboxImage(imageIndex);
+      lightbox.hidden = false;
+      document.body.classList.add("is-modal-open");
+    };
+
+    const closeLightbox = () => {
+      if (!lightbox) {
+        return;
+      }
+
+      lightbox.hidden = true;
+      document.body.classList.remove("is-modal-open");
+    };
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => showAlbum(tab.dataset.albumTab));
+    });
+
+    albumsPage.addEventListener("click", (event) => {
+      const imageButton = event.target.closest("[data-album-image]");
+      if (imageButton) {
+        openLightbox(imageButton);
+        return;
+      }
+
+      if (event.target.closest("[data-album-lightbox-close]")) {
+        closeLightbox();
+      }
+    });
+
+    previousButton?.addEventListener("click", () => setLightboxImage(activeImageIndex - 1));
+    nextButton?.addEventListener("click", () => setLightboxImage(activeImageIndex + 1));
+
+    document.addEventListener("keydown", (event) => {
+      if (!lightbox || lightbox.hidden) {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        closeLightbox();
+      } else if (event.key === "ArrowLeft") {
+        setLightboxImage(activeImageIndex - 1);
+      } else if (event.key === "ArrowRight") {
+        setLightboxImage(activeImageIndex + 1);
+      }
+    });
   });
 
   document.addEventListener("submit", async (event) => {
@@ -1142,69 +1281,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     finder.querySelectorAll("[data-admin-series-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.adminSeriesPanel !== seriesId;
-    });
-  });
-
-  document.querySelectorAll("[data-series-cover-modal-open]").forEach((control) => {
-    const modal = document.querySelector(`[data-series-cover-modal="${control.dataset.seriesCoverModalOpen}"]`);
-    if (!modal) {
-      return;
-    }
-
-    control.addEventListener("click", () => {
-      modal.hidden = false;
-      document.body.classList.add("is-modal-open");
-    });
-  });
-
-  document.querySelectorAll("[data-series-cover-modal]").forEach((modal) => {
-    modal.querySelectorAll("[data-series-cover-modal-close]").forEach((control) => {
-      control.addEventListener("click", () => {
-        modal.hidden = true;
-        document.body.classList.remove("is-modal-open");
-      });
-    });
-  });
-
-  document.querySelectorAll("[data-series-photos-modal-open]").forEach((control) => {
-    const modal = document.querySelector(`[data-series-photos-modal="${control.dataset.seriesPhotosModalOpen}"]`);
-    if (!modal) {
-      return;
-    }
-
-    control.addEventListener("click", () => {
-      modal.hidden = false;
-      document.body.classList.add("is-modal-open");
-    });
-  });
-
-  document.querySelectorAll("[data-series-photos-modal]").forEach((modal) => {
-    modal.querySelectorAll("[data-series-photos-modal-close]").forEach((control) => {
-      control.addEventListener("click", () => {
-        modal.hidden = true;
-        document.body.classList.remove("is-modal-open");
-      });
-    });
-  });
-
-  document.querySelectorAll("[data-series-added-photos-modal-open]").forEach((control) => {
-    const modal = document.querySelector(`[data-series-added-photos-modal="${control.dataset.seriesAddedPhotosModalOpen}"]`);
-    if (!modal) {
-      return;
-    }
-
-    control.addEventListener("click", () => {
-      modal.hidden = false;
-      document.body.classList.add("is-modal-open");
-    });
-  });
-
-  document.querySelectorAll("[data-series-added-photos-modal]").forEach((modal) => {
-    modal.querySelectorAll("[data-series-added-photos-modal-close]").forEach((control) => {
-      control.addEventListener("click", () => {
-        modal.hidden = true;
-        document.body.classList.remove("is-modal-open");
-      });
     });
   });
 

@@ -7,9 +7,21 @@ public sealed class HomeViewModel
 }
 
 public sealed record FeaturedSeriesItem(
+    string Id,
     string Eyebrow,
     string Title,
     string Description,
     string ImageUrl,
     string ImageAlt,
-    string Orientation);
+    string Orientation,
+    IReadOnlyList<string> PhotoUrls);
+
+public sealed class AlbumsViewModel
+{
+    public IReadOnlyList<FeaturedSeriesItem> Albums { get; init; } = [];
+}
+
+public sealed class AlbumViewModel
+{
+    public required FeaturedSeriesItem Album { get; init; }
+}

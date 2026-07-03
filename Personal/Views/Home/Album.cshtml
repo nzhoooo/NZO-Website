@@ -1,0 +1,75 @@
+@model AlbumViewModel
+
+@{
+    ViewData["Title"] = Model.Album.Title;
+    var album = Model.Album;
+}
+
+<section class="albums-page album-detail-page" data-albums-page>
+    <div class="lumina-container albums-page__inner">
+        <a class="album-back-link" asp-action="Albums" asp-controller="Home">
+            <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+            Albums
+        </a>
+
+        <article class="album-panel album-panel--single" data-album-panel="@album.Id">
+            <div class="album-panel__head">
+                <div>
+                    <span>@album.Eyebrow</span>
+                    <h1>@album.Title</h1>
+                    <p>@album.Description</p>
+                </div>
+                <strong>@album.PhotoUrls.Count photo@(album.PhotoUrls.Count == 1 ? string.Empty : "s")</strong>
+            </div>
+
+            @if (album.PhotoUrls.Count == 0)
+            {
+                <div class="albums-empty">
+                    <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+                    <p>This album is ready, but it does not have photos yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="album-grid album-grid--single" data-album-grid="@album.Id">
+                    @for (var index = 0; index < album.PhotoUrls.Count; index++)
+                    {
+                        var photoUrl = album.PhotoUrls[index];
+                        <button class="album-tile"
+                                type="button"
+                                data-album-image
+                                data-album-id="@album.Id"
+                                data-image-index="@index"
+                                data-image-url="@photoUrl"
+                                data-image-title="@album.Title photo @(index + 1)"
+                                aria-label="Open @album.Title photo @(index + 1)">
+                            <img src="@photoUrl" alt="@album.Title photo @(index + 1)" loading="lazy">
+                        </button>
+                    }
+                </div>
+            }
+        </article>
+    </div>
+
+    <div class="album-lightbox" data-album-lightbox hidden>
+        <button class="album-lightbox__backdrop" type="button" aria-label="Close image viewer" data-album-lightbox-close></button>
+        <section class="album-lightbox__dialog" role="dialog" aria-modal="true" aria-label="Album image viewer">
+            <button class="album-lightbox__close" type="button" aria-label="Close image viewer" data-album-lightbox-close>
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+            <button class="album-lightbox__nav album-lightbox__nav--prev" type="button" aria-label="Previous image" data-album-lightbox-prev>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            </button>
+            <figure>
+                <img src="" alt="" data-album-lightbox-image>
+                <figcaption>
+                    <strong data-album-lightbox-title></strong>
+                    <span data-album-lightbox-count></span>
+                </figcaption>
+            </figure>
+            <button class="album-lightbox__nav album-lightbox__nav--next" type="button" aria-label="Next image" data-album-lightbox-next>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+        </section>
+    </div>
+</section>

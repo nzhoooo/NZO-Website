@@ -1,0 +1,41 @@
+@model AlbumsViewModel
+
+@{
+    ViewData["Title"] = "Albums";
+}
+
+<section class="albums-page">
+    <div class="lumina-container albums-page__inner">
+        <header class="albums-hero">
+            <span class="label">Albums</span>
+            <h1>Series archive</h1>
+            <p>Choose one album to open its dedicated image grid.</p>
+        </header>
+
+        @if (Model.Albums.Count == 0)
+        {
+            <div class="albums-empty">
+                <span class="material-symbols-outlined" aria-hidden="true">photo_library</span>
+                <p>No albums have been published yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="albums-index-grid" aria-label="Albums">
+                @foreach (var album in Model.Albums)
+                {
+                    <a class="albums-index-card"
+                       asp-action="Album"
+                       asp-controller="Home"
+                       asp-route-id="@album.Id">
+                        <img src="@album.ImageUrl" alt="@album.ImageAlt">
+                        <span>@album.Eyebrow</span>
+                        <h2>@album.Title</h2>
+                        <p>@album.Description</p>
+                        <strong>@album.PhotoUrls.Count photo@(album.PhotoUrls.Count == 1 ? string.Empty : "s")</strong>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</section>

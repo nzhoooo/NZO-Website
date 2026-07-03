@@ -74,6 +74,7 @@ public class HomeController : Controller
     }
 
     [HttpGet("Home/Albums/{id}")]
+    [HttpGet("Home/Album/{id}")]
     public IActionResult Album(string id)
     {
         var album = GetFeaturedSeries(GetSettings())
